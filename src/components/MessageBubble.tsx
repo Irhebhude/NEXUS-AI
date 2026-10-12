@@ -1,16 +1,233 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Copy, Check, RefreshCw, Brain, ShieldCheck, ShieldAlert, ShieldQuestion, Clock } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  RefreshCw,
+  Brain,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldQuestion,
+  Clock,
+} from 'lucide-react';
 import { renderMarkdown } from '@/lib/markdown';
 import type { ChatMessage } from '@/lib/types';
 import type { ThemeColors as TC } from '@/lib/theme';
-interface MessageBubbleProps { message: ChatMessage; colors: TC; isStreaming: boolean; onRegenerate?: () => void; isLast: boolean; }
-const VERIFICATION_ICONS = { supported: ShieldCheck, partially_supported: ShieldAlert, conflicting_evidence: ShieldAlert, insufficient_evidence: ShieldQuestion, verification_unavailable: ShieldQuestion, deterministic_pass: ShieldCheck, deterministic_fail: ShieldAlert };
-const VERIFICATION_COLORS: Record<string, string> = { supported: 'var(--success)', partially_supported: 'var(--warning)', conflicting_evidence: 'var(--error)', insufficient_evidence: 'var(--warning)', verification_unavailable: 'var(--text-muted)', deterministic_pass: 'var(--success)', deterministic_fail: 'var(--error)' };
-const VERIFICATION_LABELS: Record<string, string> = { supported: 'Supported by evidence', partially_supported: 'Partially supported', conflicting_evidence: 'Conflicting evidence', insufficient_evidence: 'Insufficient evidence', verification_unavailable: 'Verification unavailable', deterministic_pass: 'Deterministic check passed', deterministic_fail: 'Deterministic check failed' };
-export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLast }: MessageBubbleProps) {
-  const [copied, setCopied] = useState(false); const [showVerification, setShowVerification] = useState(false); const contentRef = useRef<HTMLDivElement>(null); const isUser = message.role === 'user'; const metadata = message.metadata || {}; const verification = metadata.verification;
-  useEffect(() => { if (!contentRef.current) return; const buttons = contentRef.current.querySelectorAll('.code-copy'); const handlers: (() => void)[] = []; buttons.forEach((btn) => { const handler = () => { const code = decodeURIComponent(btn.getAttribute('data-code') || ''); navigator.clipboard.writeText(code); btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy'; }, 2000); }; btn.addEventListener('click', handler); handlers.push(handler); }); return () => { buttons.forEach((btn, i) => btn.removeEventListener('click', handlers[i])); }; }, [message.content]);
-  const handleCopy = useCallback(() => { navigator.clipboard.writeText(message.content); setCopied(true); setTimeout(() => setCopied(false), 2000); }, [message.content]);
-  const html = renderMarkdown(message.content); const VerifIcon = verification ? VERIFICATION_ICONS[verification.status] || ShieldQuestion : null; const verifColor = verification ? VERIFICATION_COLORS[verification.status] || colors.textMuted : colors.textMuted;
-  return <div className="group message-bubble" style={{ marginBottom: '24px' }}><div className="flex gap-3 max-w-3xl mx-auto px-4"><div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5" style={{ background: isUser ? colors.userBubble : colors.bgTertiary, color: isUser ? colors.userBubbleText : colors.accent }}>{isUser ? <span className="text-xs font-semibold">U</span> : <Brain size={16} />}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><span className="text-xs font-semibold" style={{ color: colors.textSecondary }}>{isUser ? 'You' : 'NEXUS AI'}</span>{metadata.model && metadata.model !== 'default' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: colors.bgTertiary, color: colors.textMuted }}>{metadata.model}</span>}{metadata.cancelled && <span className="text-xs" style={{ color: colors.warning }}>Cancelled</span>}</div><div ref={contentRef} className="markdown-content text-sm leading-relaxed" style={{ color: colors.text }} dangerouslySetInnerHTML={{ __html: html || (isStreaming ? '<span class="typing-indicator">Thinking...</span>' : '') }} />{isStreaming && !isUser && message.content && <span className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm" style={{ background: colors.accent, verticalAlign: 'text-bottom' }} />}{!isStreaming && !isUser && message.content && !message.content.startsWith('*Error') && <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={handleCopy} className="flex items-center gap-1 text-xs" style={{ color: colors.textMuted }}>{copied ? <Check size={12} /> : <Copy size={12} />}{copied ? 'Copied' : 'Copy'}</button>{onRegenerate && isLast && <button onClick={onRegenerate} className="flex items-center gap-1 text-xs" style={{ color: colors.textMuted }}><RefreshCw size={12} />Regenerate</button>}{metadata.latency_ms ? <span className="flex items-center gap-1 text-xs" style={{ color: colors.textMuted }}><Clock size={12} />{(metadata.latency_ms / 1000).toFixed(1)}s</span> : null}</div>}{verification && !isStreaming && <div className="mt-2"><button onClick={() => setShowVerification(!showVerification)} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded" style={{ background: colors.bgTertiary, color: verifColor }}>{VerifIcon && <VerifIcon size={12} />}{VERIFICATION_LABELS[verification.status] || verification.status}</button>{showVerification && <div className="mt-1.5 p-3 rounded-lg text-xs" style={{ background: colors.bgTertiary, border: `1px solid ${colors.border}`, color: colors.textSecondary }}><p className="mb-2" style={{ color: colors.text }}>{verification.summary}</p>{verification.checks_performed.length > 0 && <div><p className="font-semibold mb-1" style={{ color: colors.textSecondary }}>Checks performed:</p><ul className="space-y-0.5">{verification.checks_performed.map((check, i) => <li key={i} className="flex items-start gap-1.5"><Check size={11} className="mt-0.5 flex-shrink-0" style={{ color: colors.success }} /><span>{check}</span></li>)}</ul></div>}</div>}</div>}{metadata.error && !isStreaming && <div className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2" style={{ background: colors.errorBg, color: colors.error }}><ShieldAlert size={14} className="flex-shrink-0 mt-0.5" /><span>{metadata.error}</span></div>}</div></div></div>;
+
+interface MessageBubbleProps {
+  message: ChatMessage;
+  colors: TC;
+  isStreaming: boolean;
+  onRegenerate?: () => void;
+  isLast: boolean;
 }
+
+const VERIFICATION_ICONS = {
+  supported: ShieldCheck,
+  partially_supported: ShieldAlert,
+  conflicting_evidence: ShieldAlert,
+  insufficient_evidence: ShieldQuestion,
+  verification_unavailable: ShieldQuestion,
+  deterministic_pass: ShieldCheck,
+  deterministic_fail: ShieldAlert,
+};
+
+const VERIFICATION_COLORS: Record<string, string> = {
+  supported: 'var(--success)',
+  partially_supported: 'var(--warning)',
+  conflicting_evidence: 'var(--error)',
+  insufficient_evidence: 'var(--warning)',
+  verification_unavailable: 'var(--text-muted)',
+  deterministic_pass: 'var(--success)',
+  deterministic_fail: 'var(--error)',
+};
+
+const VERIFICATION_LABELS: Record<string, string> = {
+  supported: 'Supported by evidence',
+  partially_supported: 'Partially supported',
+  conflicting_evidence: 'Conflicting evidence',
+  insufficient_evidence: 'Insufficient evidence',
+  verification_unavailable: 'Verification unavailable',
+  deterministic_pass: 'Deterministic check passed',
+  deterministic_fail: 'Deterministic check failed',
+};
+
+export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLast }: MessageBubbleProps) {
+  const [copied, setCopied] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const isUser = message.role === 'user';
+  const metadata = message.metadata || {};
+  const verification = metadata.verification;
+
+  useEffect(() => {
+    // Attach copy handlers to code blocks
+    if (!contentRef.current) return;
+    const buttons = contentRef.current.querySelectorAll('.code-copy');
+    const handlers: (() => void)[] = [];
+    buttons.forEach((btn) => {
+      const handler = () => {
+        const code = decodeURIComponent(btn.getAttribute('data-code') || '');
+        navigator.clipboard.writeText(code);
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+      };
+      btn.addEventListener('click', handler);
+      handlers.push(handler);
+    });
+    return () => {
+      buttons.forEach((btn, i) => btn.removeEventListener('click', handlers[i]));
+    };
+  }, [message.content]);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [message.content]);
+
+  const html = renderMarkdown(message.content);
+
+  const VerifIcon = verification ? VERIFICATION_ICONS[verification.status] || ShieldQuestion : null;
+  const verifColor = verification ? VERIFICATION_COLORS[verification.status] || colors.textMuted : colors.textMuted;
+
+  return (
+    <div className="group message-bubble" style={{ marginBottom: '24px' }}>
+      <div className="flex gap-3 max-w-3xl mx-auto px-4">
+        {/* Avatar */}
+        <div
+          className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5"
+          style={{
+            background: isUser ? colors.userBubble : colors.bgTertiary,
+            color: isUser ? colors.userBubbleText : colors.accent,
+          }}
+        >
+          {isUser ? (
+            <span className="text-xs font-semibold">U</span>
+          ) : (
+            <Brain size={16} />
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Role label */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold" style={{ color: colors.textSecondary }}>
+              {isUser ? 'You' : 'NEXUS AI'}
+            </span>
+            {metadata.model && metadata.model !== 'default' && (
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: colors.bgTertiary, color: colors.textMuted }}>
+                {metadata.model}
+              </span>
+            )}
+            {metadata.cancelled && (
+              <span className="text-xs" style={{ color: colors.warning }}>Cancelled</span>
+            )}
+          </div>
+
+          {/* Message content */}
+          <div
+            ref={contentRef}
+            className="markdown-content text-sm leading-relaxed"
+            style={{ color: colors.text }}
+            dangerouslySetInnerHTML={{ __html: html || (isStreaming ? '<span class="typing-indicator">Thinking...</span>' : '') }}
+          />
+
+          {/* Streaming cursor */}
+          {isStreaming && !isUser && message.content && (
+            <span
+              className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm"
+              style={{ background: colors.accent, verticalAlign: 'text-bottom' }}
+            />
+          )}
+
+          {/* Metadata bar */}
+          {!isStreaming && !isUser && message.content && !message.content.startsWith('*Error') && (
+            <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-xs transition-colors"
+                style={{ color: colors.textMuted }}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+              {onRegenerate && isLast && (
+                <button
+                  onClick={onRegenerate}
+                  className="flex items-center gap-1 text-xs transition-colors"
+                  style={{ color: colors.textMuted }}
+                >
+                  <RefreshCw size={12} />
+                  Regenerate
+                </button>
+              )}
+              {metadata.latency_ms ? (
+                <span className="flex items-center gap-1 text-xs" style={{ color: colors.textMuted }}>
+                  <Clock size={12} />
+                  {(metadata.latency_ms / 1000).toFixed(1)}s
+                </span>
+              ) : null}
+            </div>
+          )}
+
+          {/* Verification badge */}
+          {verification && !isStreaming && (
+            <div className="mt-2">
+              <button
+                onClick={() => setShowVerification(!showVerification)}
+                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors"
+                style={{
+                  background: colors.bgTertiary,
+                  color: verifColor,
+                }}
+              >
+                {VerifIcon && <VerifIcon size={12} />}
+                {VERIFICATION_LABELS[verification.status] || verification.status}
+              </button>
+              {showVerification && (
+                <div
+                  className="mt-1.5 p-3 rounded-lg text-xs"
+                  style={{
+                    background: colors.bgTertiary,
+                    border: `1px solid ${colors.border}`,
+                    color: colors.textSecondary,
+                  }}
+                >
+                  <p className="mb-2" style={{ color: colors.text }}>{verification.summary}</p>
+                  {verification.checks_performed.length > 0 && (
+                    <div>
+                      <p className="font-semibold mb-1" style={{ color: colors.textSecondary }}>Checks performed:</p>
+                      <ul className="space-y-0.5">
+                        {verification.checks_performed.map((check, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <Check size={11} className="mt-0.5 flex-shrink-0" style={{ color: colors.success }} />
+                            <span>{check}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Error display */}
+          {metadata.error && !isStreaming && (
+            <div
+              className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
+              style={{ background: colors.errorBg, color: colors.error }}
+            >
+              <ShieldAlert size={14} className="flex-shrink-0 mt-0.5" />
+              <span>{metadata.error}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+

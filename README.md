@@ -55,7 +55,7 @@ NEXUS AI is a provider-independent AI platform with a ChatGPT-style conversation
 | # | System | Status | Description |
 |---|--------|--------|-------------|
 | 1 | AI Orchestration Engine | **Active** | Multi-provider proxy with automatic fallback, streaming, and provider health detection |
-| 2 | Evidence-Based Reasoning Engine | **Active** | Question classification (factual, math, code, research, reasoning, geographic) with task-based routing |
+| 2 | Evidence-Based Reasoning Engine | **Active** | Question classification (factual, math, code, research, reasoning, geographic, general) with task-based routing |
 | 3 | Independent Answer Verification Engine | **Active** | Deterministic checks: math verification, citation detection, hedging detection, response length validation |
 | 4 | Intelligent Web Research Engine | **Interface Ready** | UI toggle for web research; requires a search API key to be configured as an edge function secret |
 | 5 | Universal Knowledge Retrieval Engine | **Interface Ready** | Document ingestion architecture defined; requires embedding provider configuration |
@@ -103,7 +103,7 @@ All Supabase variables are pre-populated. To enable AI providers, add the
 appropriate API key as an edge function secret:
 
 | Secret Name | Provider | Where to Get Key |
-|-------------|---------|-----------------|
+|-------------|----------|-----------------|
 | `OPENAI_API_KEY` | OpenAI | https://platform.openai.com/api-keys |
 | `ANTHROPIC_API_KEY` | Anthropic | https://console.anthropic.com/ |
 | `GROQ_API_KEY` | Groq | https://console.groq.com/keys |
@@ -187,32 +187,32 @@ All tables have Row Level Security enabled.
 ## Known Limitations
 
 1. **Web Research Engine** — The UI toggle exists, but no search API is
-configured. A search provider key (e.g., Tavily, Serper) must be added
-as an edge function secret to enable live web research.
+   configured. A search provider key (e.g., Tavily, Serper) must be added
+   as an edge function secret to enable live web research.
 
 2. **Knowledge Retrieval Engine** — Document upload and vector search are
-not yet active. The type system and database schema support it, but
-an embedding provider and vector store integration are required.
+   not yet active. The type system and database schema support it, but
+   an embedding provider and vector store integration are required.
 
 3. **Multimodal Engine** — The attachment button is present but file
-processing is not implemented. A vision-capable model is needed for
-image analysis.
+   processing is not implemented. A vision-capable model is needed for
+   image analysis.
 
 4. **Geo-Intelligence Engine** — Geographic question classification works,
-but geocoding requires a provider API key (e.g., Google Maps, Nominatim).
+   but geocoding requires a provider API key (e.g., Google Maps, Nominatim).
 
 5. **Task Execution Engine** — Question decomposition and classification
-are implemented, but multi-step autonomous execution requires a
-tool-use capable model and tool definitions.
+   are implemented, but multi-step autonomous execution requires a
+   tool-use capable model and tool definitions.
 
 6. **Single-tenant** — The current deployment does not require
-authentication. All data is accessible via the anon key. For
-multi-user deployment, add Supabase Auth and update RLS policies
-to use `auth.uid()` ownership checks.
+   authentication. All data is accessible via the anon key. For
+   multi-user deployment, add Supabase Auth and update RLS policies
+   to use `auth.uid()` ownership checks.
 
 7. **No automated test suite** — Tests are not included in this build.
-The type checker and build process verify code correctness but not
-feature correctness.
+   The type checker and build process verify code correctness but not
+   feature correctness.
 
 ## Project Structure
 

@@ -43,6 +43,7 @@ export function Composer({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -87,7 +88,9 @@ export function Composer({
   return (
     <div className="relative z-20 w-full flex-shrink-0 px-4 pb-4 pt-2 safe-bottom pointer-events-auto" style={{ background: colors.bg }}>
       <div className="max-w-3xl mx-auto">
+        {/* Toolbar */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {/* Model selector */}
           <div className="relative" ref={modelMenuRef}>
             <button
               onClick={() => setShowModelMenu(!showModelMenu)}
@@ -137,6 +140,7 @@ export function Composer({
             )}
           </div>
 
+          {/* Web research toggle */}
           <button
             onClick={onToggleWebResearch}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -151,6 +155,7 @@ export function Composer({
           </button>
         </div>
 
+        {/* Input area */}
         <div
           className="flex items-end gap-2 rounded-2xl p-2 transition-colors"
           style={{
@@ -158,6 +163,7 @@ export function Composer({
             border: `1px solid ${colors.border}`,
           }}
         >
+          {/* Attach button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -176,6 +182,7 @@ export function Composer({
             className="hidden"
           />
 
+          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={input}
@@ -189,6 +196,7 @@ export function Composer({
             style={{ color: colors.text }}
           />
 
+          {/* Send / Stop button */}
           {isStreaming ? (
             <button
               onClick={onStop}
@@ -221,6 +229,7 @@ export function Composer({
           </p>
         )}
 
+        {/* Footer hint */}
         <p className="text-center text-xs mt-2" style={{ color: colors.textMuted }}>
           NEXUS AI can make mistakes. Verify important information.
         </p>
