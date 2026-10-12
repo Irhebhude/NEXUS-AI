@@ -115,7 +115,7 @@ async function getOpenRouterKey(): Promise<string | null> {
   if (!supabaseUrl || !serviceKey) return null;
 
   try {
-    const resp = await fetch(`${supabaseUrl}/rest/v1/system_config?key=eq.OPENROUTER_API_KEY&select=value`, {
+    const resp = await fetch(`${supabaseUrl}/rest/v1/system_config?key=eq.${encodeURIComponent("OPENROUTER_API_KEY")}&select=value`, {
       headers: {
         "apikey": serviceKey,
         "Authorization": `Bearer ${serviceKey}`,
