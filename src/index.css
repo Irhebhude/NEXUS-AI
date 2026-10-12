@@ -9,9 +9,32 @@
 html,
 body,
 #root {
+  width: 100%;
+  min-height: 100%;
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+/* Keep the app sized to the visible mobile viewport as browser chrome changes. */
+.h-dynamic-screen {
+  min-height: 100vh;
+  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+
+textarea {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Safe area insets for notched phones */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 body {
@@ -21,6 +44,7 @@ body {
   overscroll-behavior: none;
 }
 
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -39,6 +63,7 @@ body {
   background: var(--text-muted, #71717a);
 }
 
+/* Markdown content styles */
 .markdown-content {
   line-height: 1.6;
 }
@@ -123,6 +148,7 @@ body {
   border-radius: 4px;
 }
 
+/* Code block styles */
 .markdown-content .code-block {
   margin: 0.75em 0;
   border-radius: 10px;
@@ -174,6 +200,7 @@ body {
   overflow-x: auto;
 }
 
+/* Syntax highlighting */
 .syn-keyword { color: #ff7b72; font-weight: 500; }
 .syn-string { color: #a5d6ff; }
 .syn-number { color: #79c0ff; }
@@ -181,6 +208,7 @@ body {
 .syn-function { color: #d2a8ff; }
 .syn-type { color: #ffa657; }
 
+/* Typing indicator */
 .typing-indicator {
   display: inline-flex;
   align-items: center;
@@ -204,6 +232,7 @@ body {
   25%, 75% { opacity: 1; }
 }
 
+/* Smooth message appearance */
 .message-bubble {
   animation: fadeIn 0.2s ease-out;
 }
@@ -219,9 +248,29 @@ body {
   }
 }
 
+/* Mobile adjustments */
 @media (max-width: 768px) {
   .markdown-content .code-block code {
     font-size: 12px;
     padding: 10px 12px;
   }
+
+  .markdown-content .code-block {
+    border-radius: 8px;
+  }
+
+  .markdown-content pre {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Prevent text selection freeze on iOS touch */
+button, textarea, input {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+textarea, input {
+  -webkit-user-select: text;
+  user-select: text;
 }

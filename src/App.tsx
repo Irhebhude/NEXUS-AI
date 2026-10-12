@@ -22,14 +22,12 @@ function App() {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [errorDismissed, setErrorDismissed] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
   const colors = getThemeColors(theme);
   const chat = useChat();
 
-  // Apply theme to document
   useEffect(() => {
     localStorage.setItem('nexus-theme', theme);
     const root = document.documentElement;
@@ -47,7 +45,6 @@ function App() {
     root.style.setProperty('--error', colors.error);
   }, [theme, colors]);
 
-  // Load memories when settings opens
   useEffect(() => {
     if (settingsOpen) {
       loadMemories();
@@ -69,14 +66,12 @@ function App() {
     await loadMemories();
   };
 
-  // Auto-scroll handling
   useEffect(() => {
     if (autoScroll && scrollAnchorRef.current) {
       scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [chat.messages, autoScroll]);
 
-  // Detect manual scroll to disable auto-scroll
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -90,8 +85,6 @@ function App() {
   };
 
   const hasMessages = chat.messages.length > 0;
-
-  // Determine the most relevant connection/config error to surface
   const backendError = !supabaseEnvConfigured
     ? 'Supabase is not configured — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.'
     : chat.providerStatus && !chat.providerStatus.available
@@ -103,10 +96,9 @@ function App() {
 
   return (
     <div
-      className="flex h-dynamic-screen overflow-hidden"
+      className="flex h-dynamic-screen min-h-0 overflow-hidden"
       style={{ background: colors.bg, color: colors.text }}
     >
-      {/* Sidebar */}
       <Sidebar
         conversations={chat.conversations}
         currentId={chat.currentConversationId}
@@ -131,9 +123,7 @@ function App() {
         }}
       />
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <header
           className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
           style={{
@@ -158,7 +148,6 @@ function App() {
             </span>
           </div>
 
-          {/* Status indicators */}
           <div className="flex items-center gap-2">
             {chat.error && (
               <div className="flex items-center gap-1 text-xs" style={{ color: colors.error }}>
@@ -180,7 +169,6 @@ function App() {
           </div>
         </header>
 
-        {/* Error banner */}
         {showError && backendError && (
           <div
             className="flex items-start gap-2.5 px-4 py-2.5 flex-shrink-0"
@@ -207,11 +195,10 @@ function App() {
           </div>
         )}
 
-        {/* Messages or empty state */}
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           style={{ background: colors.bg, WebkitOverflowScrolling: 'touch' }}
         >
           {hasMessages ? (
@@ -236,12 +223,10 @@ function App() {
           )}
         </div>
 
-        {/* Composer */}
         <Composer
           onSend={chat.sendMessage}
           onStop={chat.stopGeneration}
           isStreaming={chat.isStreaming}
-          disabled={false}
           model={chat.model}
           onModelChange={chat.setModel}
           colors={colors}
@@ -250,7 +235,6 @@ function App() {
         />
       </div>
 
-      {/* Settings panel */}
       <SettingsPanel
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}

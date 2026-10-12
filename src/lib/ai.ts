@@ -37,8 +37,6 @@ interface StreamCallbacks {
   onError: (error: string) => void;
 }
 
-// Graceful timeout — if no token arrives within this period, abort and
-// surface a user-friendly error instead of hanging forever.
 const STREAM_TIMEOUT_MS = 60_000;
 
 export async function streamChatCompletion(
@@ -46,8 +44,6 @@ export async function streamChatCompletion(
   callbacks: StreamCallbacks,
   signal?: AbortSignal
 ): Promise<void> {
-  // If neither Supabase env vars nor a relative fallback is viable, fail fast
-  // with a clear message rather than a cryptic network error.
   if (!SUPABASE_URL && !import.meta.env.DEV) {
     // In production without Supabase URL, the relative /api/nexus-ai path
     // requires a Workers proxy. We still attempt the request — if it 404s,
@@ -56,8 +52,6 @@ export async function streamChatCompletion(
 
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), STREAM_TIMEOUT_MS);
-
-  // Combine caller's signal with our timeout signal
   const combinedSignal = signal
     ? AbortSignal.any([signal, timeoutController.signal])
     : timeoutController.signal;
@@ -134,7 +128,6 @@ export async function streamChatCompletion(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      // Distinguish user-cancel from timeout
       if (signal?.aborted) {
         callbacks.onError('cancelled');
       } else {
@@ -150,8 +143,6 @@ export async function streamChatCompletion(
 }
 
 export async function checkProviderStatus(): Promise<{ providers: Record<string, boolean>; available: boolean }> {
-  // If no Supabase env vars AND we're not in dev mode (where /api proxy might exist),
-  // there's no backend to check.
   if (!supabaseEnvConfigured && !import.meta.env.DEV) {
     return { providers: {}, available: false };
   }
@@ -168,41 +159,32 @@ export async function checkProviderStatus(): Promise<{ providers: Record<string,
   }
 }
 
-// Reasoning Engine — classifies questions and determines the execution plan
 export function classifyQuestion(content: string): {
   type: 'factual' | 'math' | 'code' | 'research' | 'reasoning' | 'geographic' | 'document' | 'general';
   needsSearch: boolean;
   needsReasoning: boolean;
   complexity: 'low' | 'medium' | 'high';
 } {
-  const lower = content.toLowerCase();
-
-  // Math detection
   if (/^[\d\s+\-*/().%^]+$/.test(content.trim()) || /\b(calculate|compute|solve|sum|product|divide|multiply)\b/i.test(content)) {
     return { type: 'math', needsSearch: false, needsReasoning: false, complexity: 'low' };
   }
 
-  // Code detection
   if (/\b(code|function|debug|compile|typescript|python|javascript|rust|java|sql|algorithm|api)\b/i.test(content)) {
     return { type: 'code', needsSearch: false, needsReasoning: true, complexity: 'medium' };
   }
 
-  // Geographic detection
   if (/\b(where|location|near|distance|coordinates|map|geocode|address|city|country|route)\b/i.test(content)) {
     return { type: 'geographic', needsSearch: true, needsReasoning: true, complexity: 'medium' };
   }
 
-  // Current events / research
   if (/\b(latest|current|recent|today|2024|2025|2026|news|update|happened|price|stock|weather)\b/i.test(content)) {
     return { type: 'research', needsSearch: true, needsReasoning: true, complexity: 'high' };
   }
 
-  // Factual
   if (/\b(what is|who is|when did|how many|define|explain|fact|history of)\b/i.test(content)) {
     return { type: 'factual', needsSearch: true, needsReasoning: false, complexity: 'medium' };
   }
 
-  // Complex reasoning
   if (content.length > 200 || /\b(compare|analyze|evaluate|reason|why|should|would|could|implication|consequence|trade-off)\b/i.test(content)) {
     return { type: 'reasoning', needsSearch: false, needsReasoning: true, complexity: 'high' };
   }
@@ -210,24 +192,19 @@ export function classifyQuestion(content: string): {
   return { type: 'general', needsSearch: false, needsReasoning: false, complexity: 'low' };
 }
 
-// Verification Engine — performs deterministic checks on AI responses
 export function verifyResponse(content: string, question: string): {
   status: 'deterministic_pass' | 'deterministic_fail' | 'verification_unavailable';
   summary: string;
   checks: string[];
 } {
   const checks: string[] = [];
-
-  // Check for hedging / uncertainty markers
   const hedgingWords = /\b(might|maybe|possibly|perhaps|likely|probably|i think|i believe|it seems|uncertain)\b/i;
   const hasHedging = hedgingWords.test(content);
   if (!hasHedging) checks.push('No uncertainty hedging detected');
 
-  // Check for source citations
   const hasCitations = /\[.*?\]\(|https?:\/\//.test(content);
   if (hasCitations) checks.push('Contains source references');
 
-  // Math verification for arithmetic questions
   const mathMatch = question.match(/(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)/);
   if (mathMatch) {
     const a = parseFloat(mathMatch[1]);
@@ -247,7 +224,6 @@ export function verifyResponse(content: string, question: string): {
       : `Math check: expected ${expected} in response`);
   }
 
-  // Check response length is reasonable
   if (content.length < 10) {
     return {
       status: 'deterministic_fail',
