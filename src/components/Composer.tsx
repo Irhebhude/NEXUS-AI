@@ -88,7 +88,7 @@ export function Composer({
   };
 
   return (
-    <div className="px-4 pb-4 pt-2 safe-bottom" style={{ background: colors.bg }}>
+    <div className="relative z-20 px-4 pb-4 pt-2 safe-bottom pointer-events-auto" style={{ background: colors.bg }}>
       <div className="max-w-3xl mx-auto">
         {/* Toolbar */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -190,7 +190,8 @@ export function Composer({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={disabled}
+            disabled={disabled || isStreaming}
+            aria-label="Message NEXUS AI"
             placeholder="Ask anything. Examine the evidence. Understand the answer."
             rows={1}
             className="flex-1 resize-none bg-transparent outline-none text-sm py-2 max-h-48"
