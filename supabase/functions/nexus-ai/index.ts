@@ -64,14 +64,14 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
 
     const html = await response.text();
     const results: SearchResult[] = [];
-    const resultPattern = /<div class="result results_links[^>]*>([\s\S]*?)<\/div>\s*<\/div>/g;
-    let match: RegExpExecArray | null;
+    const linkPattern = /class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    let linkMatch: RegExpExecArray | null;
 
-    while ((match = resultPattern.exec(html)) && results.length < 5) {
-      const block = match[1];
-      const linkMatch = block.match(/class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
-      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>|class="result__snippet"[^>]*>([\s\S]*?)<\/div>/);
-      if (!linkMatch) continue;
+    while ((linkMatch = linkPattern.exec(html)) && results.length < 5) {
+      const nextLinkPosition = html.indexOf('class="result__a"', linkPattern.lastIndex);
+      const blockEnd = nextLinkPosition === -1 ? html.length : nextLinkPosition;
+      const block = html.slice(linkMatch.index, blockEnd);
+      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)(?:<\/a>|<\/div>)/);
 
       let url = linkMatch[1];
       if (url.startsWith("//duckduckgo.com/l/?")) {
@@ -83,7 +83,7 @@ async function searchWeb(query: string): Promise<SearchResult[]> {
       results.push({
         title: decodeHtml(linkMatch[2]).trim(),
         url,
-        snippet: decodeHtml(snippetMatch?.[1] || snippetMatch?.[2] || "").trim(),
+        snippet: decodeHtml(snippetMatch?.[1] || "").trim(),
       });
     }
 

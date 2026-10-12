@@ -28,7 +28,9 @@ export function Composer({
 }: ComposerProps) {
   const [input, setInput] = useState('');
   const [showModelMenu, setShowModelMenu] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   const models = getAllModels();
@@ -55,6 +57,27 @@ export function Composer({
     if (!input.trim() || isStreaming || disabled) return;
     onSend(input.trim(), webResearch);
     setInput('');
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const maxSize = 1024 * 1024;
+    const allowedExtensions = /\.(txt|md|markdown|csv|json|log)$/i;
+    if (!allowedExtensions.test(file.name) || file.size > maxSize) {
+      setAttachmentError('Choose a text, Markdown, CSV, JSON, or log file under 1 MB.');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      setInput((current) => `${current}${current ? '\n\n' : ''}[Attached file: ${file.name}]\n${text}`);
+      setAttachmentError(null);
+    } catch {
+      setAttachmentError('This file could not be read. Try another text file.');
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -144,13 +167,22 @@ export function Composer({
         >
           {/* Attach button */}
           <button
-            disabled={disabled}
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || isStreaming}
             className="flex-shrink-0 p-2 rounded-lg transition-colors disabled:opacity-40"
             style={{ color: colors.textSecondary }}
-            title="Attach file (coming soon)"
+            title="Attach a text file"
           >
             <Paperclip size={18} />
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.markdown,.csv,.json,.log,text/plain,text/markdown,text/csv,application/json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
 
           {/* Textarea */}
           <textarea
@@ -191,6 +223,12 @@ export function Composer({
             </button>
           )}
         </div>
+
+        {attachmentError && (
+          <p className="text-xs mt-2" style={{ color: colors.error }}>
+            {attachmentError}
+          </p>
+        )}
 
         {/* Footer hint */}
         <p className="text-center text-xs mt-2" style={{ color: colors.textMuted }}>
