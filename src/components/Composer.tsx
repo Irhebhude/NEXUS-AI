@@ -54,7 +54,7 @@ export function Composer({
   }, [input]);
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming || disabled) return;
+    if (!input.trim() || isStreaming) return;
     onSend(input.trim(), webResearch);
     setInput('');
   };
@@ -169,7 +169,7 @@ export function Composer({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isStreaming}
+            disabled={isStreaming}
             className="flex-shrink-0 p-2 rounded-lg transition-colors disabled:opacity-40"
             style={{ color: colors.textSecondary }}
             title="Attach a text file"
@@ -190,11 +190,11 @@ export function Composer({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={disabled || isStreaming}
+            disabled={isStreaming}
             aria-label="Message NEXUS AI"
             placeholder="Ask anything. Examine the evidence. Understand the answer."
             rows={1}
-            className="flex-1 resize-none bg-transparent outline-none text-sm py-2 max-h-48"
+            className="flex-1 resize-none bg-transparent outline-none text-sm py-2 max-h-48 disabled:opacity-60"
             style={{ color: colors.text }}
           />
 
@@ -213,7 +213,7 @@ export function Composer({
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim() || disabled}
+              disabled={!input.trim() || isStreaming}
               className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
               style={{
                 background: input.trim() ? colors.accent : colors.bgTertiary,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Menu, Brain, AlertCircle } from 'lucide-react';
+import { Menu, Brain, AlertCircle, X, WifiOff } from 'lucide-react';
 import { useChat } from '@/hooks/useChat';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageBubble } from '@/components/MessageBubble';
@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { getThemeColors, type Theme } from '@/lib/theme';
 import { getMemories, addMemory, deleteMemory } from '@/lib/db';
+import { supabaseEnvConfigured } from '@/lib/supabase';
 import type { Memory } from '@/lib/types';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
   const [webResearch, setWebResearch] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [errorDismissed, setErrorDismissed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
@@ -27,6 +29,7 @@ function App() {
   const colors = getThemeColors(theme);
   const chat = useChat();
 
+  // Apply theme to document
   useEffect(() => {
     localStorage.setItem('nexus-theme', theme);
     const root = document.documentElement;
@@ -44,8 +47,11 @@ function App() {
     root.style.setProperty('--error', colors.error);
   }, [theme, colors]);
 
+  // Load memories when settings opens
   useEffect(() => {
-    if (settingsOpen) loadMemories();
+    if (settingsOpen) {
+      loadMemories();
+    }
   }, [settingsOpen]);
 
   const loadMemories = async () => {
@@ -63,12 +69,14 @@ function App() {
     await loadMemories();
   };
 
+  // Auto-scroll handling
   useEffect(() => {
     if (autoScroll && scrollAnchorRef.current) {
       scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [chat.messages, autoScroll]);
 
+  // Detect manual scroll to disable auto-scroll
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -83,8 +91,22 @@ function App() {
 
   const hasMessages = chat.messages.length > 0;
 
+  // Determine the most relevant connection/config error to surface
+  const backendError = !supabaseEnvConfigured
+    ? 'Supabase is not configured — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.'
+    : chat.providerStatus && !chat.providerStatus.available
+    ? 'No AI provider configured — set OPENROUTER_API_KEY as an edge function secret or in the system_config table.'
+    : chat.error && chat.error !== 'cancelled'
+    ? chat.error
+    : null;
+  const showError = backendError && !errorDismissed;
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: colors.bg, color: colors.text }}>
+    <div
+      className="flex h-dynamic-screen overflow-hidden"
+      style={{ background: colors.bg, color: colors.text }}
+    >
+      {/* Sidebar */}
       <Sidebar
         conversations={chat.conversations}
         currentId={chat.currentConversationId}
@@ -92,30 +114,154 @@ function App() {
         onClose={() => setSidebarOpen(false)}
         colors={colors}
         providerAvailable={chat.providerStatus?.available ?? false}
-        onNewChat={() => { chat.newConversation(); setSidebarOpen(false); }}
-        onSelect={(id) => { chat.selectConversation(id); setSidebarOpen(false); setAutoScroll(true); }}
+        onNewChat={() => {
+          chat.newConversation();
+          setSidebarOpen(false);
+        }}
+        onSelect={(id) => {
+          chat.selectConversation(id);
+          setSidebarOpen(false);
+          setAutoScroll(true);
+        }}
         onDelete={chat.removeConversation}
         onRename={chat.renameConversation}
-        onOpenSettings={() => { setSettingsOpen(true); setSidebarOpen(false); }}
+        onOpenSettings={() => {
+          setSettingsOpen(true);
+          setSidebarOpen(false);
+        }}
       />
+
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between px-4 py-2.5 flex-shrink-0" style={{ background: colors.bg, borderBottom: `1px solid ${colors.border}` }}>
+        {/* Header */}
+        <header
+          className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
+          style={{
+            background: colors.bg,
+            borderBottom: `1px solid ${colors.border}`,
+          }}
+        >
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-1.5 rounded-lg" style={{ color: colors.textSecondary }}><Menu size={20} /></button>
-            <div className="flex items-center gap-2 md:hidden"><Brain size={18} style={{ color: colors.accent }} /><span className="text-sm font-semibold" style={{ color: colors.text }}>NEXUS AI</span></div>
-            <span className="hidden md:block text-sm font-medium" style={{ color: colors.textSecondary }}>{chat.conversations.find((c) => c.id === chat.currentConversationId)?.title || 'New Conversation'}</span>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-1.5 rounded-lg"
+              style={{ color: colors.textSecondary }}
+            >
+              <Menu size={20} />
+            </button>
+            <div className="flex items-center gap-2 md:hidden">
+              <Brain size={18} style={{ color: colors.accent }} />
+              <span className="text-sm font-semibold" style={{ color: colors.text }}>NEXUS AI</span>
+            </div>
+            <span className="hidden md:block text-sm font-medium" style={{ color: colors.textSecondary }}>
+              {chat.conversations.find((c) => c.id === chat.currentConversationId)?.title || 'New Conversation'}
+            </span>
           </div>
+
+          {/* Status indicators */}
           <div className="flex items-center gap-2">
-            {chat.error && <div className="flex items-center gap-1 text-xs" style={{ color: colors.error }}><AlertCircle size={14} /></div>}
-            {chat.providerStatus && !chat.providerStatus.available && <div className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ background: colors.warning + '15', color: colors.warning }}><AlertCircle size={12} /><span className="hidden sm:inline">No AI provider</span></div>}
+            {chat.error && (
+              <div className="flex items-center gap-1 text-xs" style={{ color: colors.error }}>
+                <AlertCircle size={14} />
+              </div>
+            )}
+            {chat.providerStatus && !chat.providerStatus.available && (
+              <div
+                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
+                style={{
+                  background: colors.warning + '15',
+                  color: colors.warning,
+                }}
+              >
+                <AlertCircle size={12} />
+                <span className="hidden sm:inline">No AI provider</span>
+              </div>
+            )}
           </div>
         </header>
-        <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ background: colors.bg }}>
-          {hasMessages ? <div className="py-6">{chat.messages.map((msg, i) => <MessageBubble key={msg.id} message={msg} colors={colors} isStreaming={chat.isStreaming && i === chat.messages.length - 1 && msg.role === 'assistant'} onRegenerate={chat.regenerateLastResponse} isLast={i === chat.messages.length - 1} />)}<div ref={scrollAnchorRef} /></div> : <EmptyState colors={colors} onExampleClick={handleExampleClick} providerAvailable={chat.providerStatus?.available ?? false} />}
+
+        {/* Error banner */}
+        {showError && backendError && (
+          <div
+            className="flex items-start gap-2.5 px-4 py-2.5 flex-shrink-0"
+            style={{
+              background: colors.error + '12',
+              borderBottom: `1px solid ${colors.error}30`,
+            }}
+          >
+            {!supabaseEnvConfigured ? (
+              <WifiOff size={16} className="flex-shrink-0 mt-0.5" style={{ color: colors.error }} />
+            ) : (
+              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" style={{ color: colors.error }} />
+            )}
+            <p className="flex-1 text-xs leading-relaxed" style={{ color: colors.error }}>
+              {backendError}
+            </p>
+            <button
+              onClick={() => setErrorDismissed(true)}
+              className="flex-shrink-0 p-0.5 rounded transition-opacity hover:opacity-70"
+              style={{ color: colors.error }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Messages or empty state */}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto"
+          style={{ background: colors.bg, WebkitOverflowScrolling: 'touch' }}
+        >
+          {hasMessages ? (
+            <div className="py-6">
+              {chat.messages.map((msg, i) => (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  colors={colors}
+                  isStreaming={chat.isStreaming && i === chat.messages.length - 1 && msg.role === 'assistant'}
+                  onRegenerate={chat.regenerateLastResponse}
+                  isLast={i === chat.messages.length - 1}
+                />
+              ))}
+              <div ref={scrollAnchorRef} />
+            </div>
+          ) : (
+            <EmptyState
+              colors={colors}
+              onExampleClick={handleExampleClick}
+            />
+          )}
         </div>
-        <Composer onSend={chat.sendMessage} onStop={chat.stopGeneration} isStreaming={chat.isStreaming} disabled={false} model={chat.model} onModelChange={chat.setModel} colors={colors} webResearch={webResearch} onToggleWebResearch={() => setWebResearch(!webResearch)} />
+
+        {/* Composer */}
+        <Composer
+          onSend={chat.sendMessage}
+          onStop={chat.stopGeneration}
+          isStreaming={chat.isStreaming}
+          disabled={false}
+          model={chat.model}
+          onModelChange={chat.setModel}
+          colors={colors}
+          webResearch={webResearch}
+          onToggleWebResearch={() => setWebResearch(!webResearch)}
+        />
       </div>
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} theme={theme} onThemeChange={setTheme} colors={colors} providerStatus={chat.providerStatus} memories={memories} onAddMemory={handleAddMemory} onDeleteMemory={handleDeleteMemory} />
+
+      {/* Settings panel */}
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        onThemeChange={setTheme}
+        colors={colors}
+        providerStatus={chat.providerStatus}
+        memories={memories}
+        onAddMemory={handleAddMemory}
+        onDeleteMemory={handleDeleteMemory}
+      />
     </div>
   );
 }
