@@ -30,7 +30,11 @@ interface ChatRequestBody {
 }
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-const SEARCH_URL = "https://html.duckduckgo.com/html/";
+const SEARCH_URLS = [
+  "https://html.duckduckgo.com/html/",
+  "https://lite.duckduckgo.com/lite/",
+];
+const INSTANT_ANSWER_URL = "https://api.duckduckgo.com/";
 
 interface SearchResult {
   title: string;
@@ -46,53 +50,102 @@ function decodeHtml(value: string): string {
     .replace(/&#x27;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x2F;/g, "/");
 }
 
-async function searchWeb(query: string): Promise<SearchResult[]> {
-  const trimmedQuery = query.trim().slice(0, 240);
-  if (!trimmedQuery) return [];
+function normalizeSearchUrl(rawUrl: string): string | null {
+  let url = rawUrl.replace(/&amp;/g, "&").trim();
+  if (url.startsWith("//duckduckgo.com/l/?")) {
+    const redirectedUrl = new URL(`https:${url}`).searchParams.get("uddg");
+    if (redirectedUrl) url = redirectedUrl;
+  }
+  return /^https?:\/\//i.test(url) ? url : null;
+}
 
+function parseSearchHtml(html: string): SearchResult[] {
+  const results: SearchResult[] = [];
+  const anchorPattern = /<a\b[^>]*class=["'][^"']*(?:result__a|result-link)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
+  let anchorMatch: RegExpExecArray | null;
+
+  while ((anchorMatch = anchorPattern.exec(html)) && results.length < 5) {
+    const anchor = anchorMatch[0];
+    const rawUrl = anchor.match(/href=["']([^"']+)["']/i)?.[1];
+    const rawTitle = anchor.match(/>([\s\S]*?)<\/a>/i)?.[1];
+    const url = rawUrl ? normalizeSearchUrl(rawUrl) : null;
+    if (!url || !rawTitle) continue;
+
+    const block = html.slice(anchorMatch.index, anchorMatch.index + 2400);
+    const snippet = block.match(/class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)(?:<\/a>|<\/div>|<\/td>)/i)?.[1] || "";
+    results.push({
+      title: decodeHtml(rawTitle).trim(),
+      url,
+      snippet: decodeHtml(snippet).trim(),
+    });
+  }
+
+  return results;
+}
+
+async function fetchSearchHtml(url: string, query: string): Promise<SearchResult[]> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(trimmedQuery)}`, {
-      headers: { "User-Agent": "NEXUS AI research service" },
+    const response = await fetch(`${url}?q=${encodeURIComponent(query)}`, {
+      headers: {
+        "Accept": "text/html,application/xhtml+xml",
+        "User-Agent": "Mozilla/5.0 (compatible; NEXUS AI research service)",
+      },
       signal: controller.signal,
     });
     if (!response.ok) return [];
+    return parseSearchHtml(await response.text());
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
-    const html = await response.text();
+async function fetchInstantAnswer(query: string): Promise<SearchResult[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(`${INSTANT_ANSWER_URL}?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`, {
+      headers: { "Accept": "application/json", "User-Agent": "NEXUS AI research service" },
+      signal: controller.signal,
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
     const results: SearchResult[] = [];
-    const linkPattern = /class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-    let linkMatch: RegExpExecArray | null;
-
-    while ((linkMatch = linkPattern.exec(html)) && results.length < 5) {
-      const nextLinkPosition = html.indexOf('class="result__a"', linkPattern.lastIndex);
-      const blockEnd = nextLinkPosition === -1 ? html.length : nextLinkPosition;
-      const block = html.slice(linkMatch.index, blockEnd);
-      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)(?:<\/a>|<\/div>)/);
-
-      let url = linkMatch[1];
-      if (url.startsWith("//duckduckgo.com/l/?")) {
-        const redirectedUrl = new URL(`https:${url}`).searchParams.get("uddg");
-        if (redirectedUrl) url = redirectedUrl;
-      }
-      if (!/^https?:\/\//i.test(url)) continue;
-
-      results.push({
-        title: decodeHtml(linkMatch[2]).trim(),
-        url,
-        snippet: decodeHtml(snippetMatch?.[1] || "").trim(),
-      });
+    if (data.AbstractText && data.AbstractURL) {
+      results.push({ title: data.Heading || query, url: data.AbstractURL, snippet: data.AbstractText });
     }
-
+    for (const topic of data.RelatedTopics || []) {
+      if (results.length >= 5) break;
+      if (topic.Text && topic.FirstURL) {
+        results.push({ title: topic.Text.split(" - ")[0], url: topic.FirstURL, snippet: topic.Text });
+      }
+    }
     return results;
   } catch {
     return [];
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function searchWeb(query: string): Promise<SearchResult[]> {
+  const trimmedQuery = query.trim().slice(0, 240);
+  if (!trimmedQuery) return [];
+
+  for (const searchUrl of SEARCH_URLS) {
+    const results = await fetchSearchHtml(searchUrl, trimmedQuery);
+    if (results.length > 0) return results;
+  }
+
+  return fetchInstantAnswer(trimmedQuery);
 }
 
 function buildResearchContext(results: SearchResult[]): string {
