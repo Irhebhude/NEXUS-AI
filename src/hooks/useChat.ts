@@ -12,7 +12,7 @@ import {
   recordUsage,
 } from '@/lib/db';
 import { streamChatCompletion, checkProviderStatus, classifyQuestion, verifyResponse } from '@/lib/ai';
-import type { Conversation, ChatMessage, MessageMetadata } from '@/lib/types';
+import type { Conversation, ChatMessage, IntelligenceMode, MessageMetadata } from '@/lib/types';
 
 const SYSTEM_PROMPT = `You are NEXUS AI, an advanced intelligence platform that provides accurate, evidence-based answers.
 
@@ -30,7 +30,16 @@ Guidelines:
 - Include source links when referencing specific facts
 - If you are unsure, say so explicitly
 - Never fabricate citations, data, or capabilities
-- For mathematical questions, show your work`;
+- For mathematical questions, show your work
+- Never claim to have complete knowledge. State the knowledge boundary and use research mode for current or uncertain facts.`;
+
+const MODE_INSTRUCTIONS: Record<IntelligenceMode, string> = {
+  auto: 'Choose the appropriate approach for the request. Use evidence gathering when facts may be current or uncertain.',
+  general: 'Answer directly and clearly using the selected model. Do not imply live browsing or unlimited knowledge.',
+  reasoning: 'Solve step by step internally, validate calculations and assumptions, and present only a concise explanation rather than private chain-of-thought.',
+  research: 'Prioritize web evidence, compare sources, cite relevant URLs, and clearly label uncertainty or missing evidence.',
+  action: 'Use only the supported bounded tools for this request, currently web research and deterministic calculation checks. Never execute commands, access arbitrary files, or take consequential actions.',
+};
 
 export function useChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -44,13 +53,11 @@ export function useChat() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const sendLockRef = useRef(false);
 
-  // Load conversations on mount
   useEffect(() => {
     loadConversations();
     checkStatus();
   }, []);
 
-  // Load messages when conversation changes
   useEffect(() => {
     if (currentConversationId) {
       loadMessages(currentConversationId);
@@ -59,7 +66,6 @@ export function useChat() {
     }
   }, [currentConversationId]);
 
-  // Realtime subscription for conversations
   useEffect(() => {
     const channel = supabase
       .channel('conversations-changes')
@@ -122,13 +128,16 @@ export function useChat() {
     setIsStreaming(false);
   }, []);
 
-  const sendMessage = useCallback(async (content: string, webResearch = false) => {
+  const sendMessage = useCallback(async (
+    content: string,
+    webResearch = false,
+    intelligenceMode: IntelligenceMode = 'auto',
+  ) => {
     if (!content.trim() || isStreaming || sendLockRef.current) return;
     sendLockRef.current = true;
 
     setError(null);
 
-    // Get or create conversation
     let convId = currentConversationId;
     if (!convId) {
       const conv = await createConversation(
@@ -144,13 +153,11 @@ export function useChat() {
       setConversations((prev) => [conv, ...prev]);
     }
 
-    // Add user message
     const userMsg = await addMessage(convId, 'user', content);
     if (userMsg) {
       setMessages((prev) => [...prev, userMsg]);
     }
 
-    // Auto-title if first message
     if (messages.length === 0) {
       const title = content.slice(0, 50) + (content.length > 50 ? '...' : '');
       updateConversationTitle(convId, title);
@@ -159,7 +166,6 @@ export function useChat() {
       );
     }
 
-    // Create placeholder assistant message
     const assistantMsg = await addMessage(convId, 'assistant', '');
     if (!assistantMsg) {
       setError('Failed to create response placeholder');
@@ -169,8 +175,9 @@ export function useChat() {
     setMessages((prev) => [...prev, assistantMsg]);
     setCurrentConversationId(convId);
 
-    // Classify the question for reasoning trace
     const classification = classifyQuestion(content);
+    const shouldResearch = webResearch || intelligenceMode === 'research' || intelligenceMode === 'action' ||
+      (intelligenceMode === 'auto' && classification.needsSearch);
 
     setIsStreaming(true);
     setIsLoading(true);
@@ -178,7 +185,6 @@ export function useChat() {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    // Build message history for the AI
     const history = messages
       .filter((m) => m.role !== 'system')
       .map((m) => ({ role: m.role, content: m.content }))
@@ -191,9 +197,10 @@ export function useChat() {
         messages: history,
         model,
         stream: true,
-        system_prompt: SYSTEM_PROMPT,
-        temperature: classification.type === 'code' ? 0.2 : 0.7,
-        web_research: webResearch || classification.needsSearch,
+        system_prompt: `${SYSTEM_PROMPT}\n\nMode: ${MODE_INSTRUCTIONS[intelligenceMode]}`,
+        temperature: intelligenceMode === 'reasoning' || classification.type === 'code' ? 0.2 : 0.7,
+        web_research: shouldResearch,
+        intelligence_mode: intelligenceMode,
       },
       {
         onToken: (token) => {
@@ -209,10 +216,10 @@ export function useChat() {
           setIsLoading(false);
           sendLockRef.current = false;
 
-          // Run verification
           const verification = verifyResponse(accumulatedContent, content);
 
           const metadata: MessageMetadata = {
+            intelligence_mode: intelligenceMode,
             model: response.model,
             provider: response.provider,
             tokens_in: response.tokens_in,
@@ -228,7 +235,6 @@ export function useChat() {
 
           await updateMessageContent(assistantMsg.id, accumulatedContent, metadata);
 
-          // Record usage
           if (response.tokens_out > 0) {
             recordUsage({
               provider: response.provider,
@@ -240,7 +246,6 @@ export function useChat() {
             });
           }
 
-          // Update message in state
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMsg.id ? { ...m, content: accumulatedContent, metadata } : m
@@ -281,17 +286,14 @@ export function useChat() {
   const regenerateLastResponse = useCallback(async () => {
     if (messages.length < 2 || isStreaming) return;
 
-    // Find last user message
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
     if (!lastUserMsg) return;
 
-    // Remove last assistant message
     const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
     if (lastAssistant) {
       await deleteMessage(lastAssistant.id);
     }
 
-    // Re-send
     setMessages((prev) => prev.filter((m) => m.id !== lastAssistant?.id));
     await sendMessage(lastUserMsg.content);
   }, [messages, isStreaming, sendMessage]);

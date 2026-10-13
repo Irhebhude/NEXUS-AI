@@ -9,7 +9,7 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { getThemeColors, type Theme } from '@/lib/theme';
 import { getMemories, addMemory, deleteMemory } from '@/lib/db';
 import { supabaseEnvConfigured } from '@/lib/supabase';
-import type { Memory } from '@/lib/types';
+import type { IntelligenceMode, Memory } from '@/lib/types';
 
 function App() {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -19,6 +19,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [webResearch, setWebResearch] = useState(false);
+  const [intelligenceMode, setIntelligenceMode] = useState<IntelligenceMode>('auto');
   const [memories, setMemories] = useState<Memory[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [errorDismissed, setErrorDismissed] = useState(false);
@@ -28,7 +29,6 @@ function App() {
   const colors = getThemeColors(theme);
   const chat = useChat();
 
-  // Apply theme to document
   useEffect(() => {
     localStorage.setItem('nexus-theme', theme);
     const root = document.documentElement;
@@ -46,7 +46,6 @@ function App() {
     root.style.setProperty('--error', colors.error);
   }, [theme, colors]);
 
-  // Load memories when settings opens
   useEffect(() => {
     if (settingsOpen) {
       loadMemories();
@@ -68,14 +67,12 @@ function App() {
     await loadMemories();
   };
 
-  // Auto-scroll handling
   useEffect(() => {
     if (autoScroll && scrollAnchorRef.current) {
       scrollAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   }, [chat.messages, autoScroll]);
 
-  // Detect manual scroll to disable auto-scroll
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -90,7 +87,6 @@ function App() {
 
   const hasMessages = chat.messages.length > 0;
 
-  // Determine the most relevant connection/config error to surface
   const backendError = !supabaseEnvConfigured
     ? 'Supabase is not configured — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.'
     : chat.providerStatus && !chat.providerStatus.available
@@ -105,7 +101,6 @@ function App() {
       className="flex h-dynamic-screen min-h-0 overflow-hidden"
       style={{ background: colors.bg, color: colors.text }}
     >
-      {/* Sidebar */}
       <Sidebar
         conversations={chat.conversations}
         currentId={chat.currentConversationId}
@@ -130,9 +125,7 @@ function App() {
         }}
       />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Header */}
         <header
           className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
           style={{
@@ -157,7 +150,6 @@ function App() {
             </span>
           </div>
 
-          {/* Status indicators */}
           <div className="flex items-center gap-2">
             {chat.error && (
               <div className="flex items-center gap-1 text-xs" style={{ color: colors.error }}>
@@ -179,7 +171,6 @@ function App() {
           </div>
         </header>
 
-        {/* Error banner */}
         {showError && backendError && (
           <div
             className="flex items-start gap-2.5 px-4 py-2.5 flex-shrink-0"
@@ -206,7 +197,6 @@ function App() {
           </div>
         )}
 
-        {/* Messages or empty state */}
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
@@ -235,9 +225,8 @@ function App() {
           )}
         </div>
 
-        {/* Composer */}
         <Composer
-          onSend={chat.sendMessage}
+          onSend={(content, research) => chat.sendMessage(content, research, intelligenceMode)}
           onStop={chat.stopGeneration}
           isStreaming={chat.isStreaming}
           model={chat.model}
@@ -245,10 +234,11 @@ function App() {
           colors={colors}
           webResearch={webResearch}
           onToggleWebResearch={() => setWebResearch(!webResearch)}
+          intelligenceMode={intelligenceMode}
+          onIntelligenceModeChange={setIntelligenceMode}
         />
       </div>
 
-      {/* Settings panel */}
       <SettingsPanel
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
