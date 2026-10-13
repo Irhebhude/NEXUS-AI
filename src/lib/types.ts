@@ -2,6 +2,8 @@
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+export type IntelligenceMode = 'auto' | 'general' | 'reasoning' | 'research' | 'action';
+
 export interface Conversation {
   id: string;
   title: string;
@@ -31,6 +33,7 @@ export interface MessageMetadata {
   reasoning_steps?: ReasoningStep[];
   error?: string;
   cancelled?: boolean;
+  intelligence_mode?: IntelligenceMode;
 }
 
 export interface Citation {
@@ -92,7 +95,6 @@ export interface UsageMetric {
   created_at: string;
 }
 
-// AI Provider types
 export interface AIProviderConfig {
   id: string;
   name: string;
@@ -116,6 +118,7 @@ export interface ChatCompletionRequest {
   stream?: boolean;
   system_prompt?: string;
   web_research?: boolean;
+  intelligence_mode?: IntelligenceMode;
 }
 
 export interface ChatCompletionResponse {
