@@ -27,6 +27,7 @@ interface ChatRequestBody {
   system_prompt?: string;
   stream?: boolean;
   web_research?: boolean;
+  intelligence_mode?: "auto" | "general" | "reasoning" | "research" | "action";
 }
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -160,8 +161,6 @@ function buildResearchContext(results: SearchResult[]): string {
   ].join("\n\n");
 }
 
-// Fetch the OpenRouter API key from the database.
-// The edge function has SUPABASE_SERVICE_ROLE_KEY available which bypasses RLS.
 async function getOpenRouterKey(): Promise<string | null> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -182,7 +181,6 @@ async function getOpenRouterKey(): Promise<string | null> {
   }
 }
 
-// Also check Deno.env as a fallback (in case the key is set as a secret)
 function getOpenRouterKeyFromEnv(): string | null {
   return Deno.env.get("OPENROUTER_API_KEY") || null;
 }
@@ -201,7 +199,6 @@ async function getConfiguredProviders(): Promise<Record<string, boolean>> {
   };
 }
 
-// OpenAI-compatible streaming — used by OpenRouter, OpenAI, and Groq
 async function streamOpenAICompatible(
   baseUrl: string,
   apiKey: string,
@@ -301,8 +298,6 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const rawPath = url.pathname;
-  // Supabase edge function runtime gives paths like "/nexus-ai" or "/nexus-ai/chat"
-  // (without the /functions/v1 prefix). Normalize to the route after the function name.
   const funcPrefix = "/nexus-ai";
   let path = rawPath;
   if (rawPath.startsWith(funcPrefix)) {
@@ -310,7 +305,6 @@ Deno.serve(async (req: Request) => {
   }
   if (path === "") path = "/";
 
-  // Status endpoint — handle both "/" and "/status"
   if ((path === "/" || path === "/status") && req.method === "GET") {
     const providers = await getConfiguredProviders();
     const available = Object.values(providers).some(Boolean);
@@ -320,13 +314,13 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // Chat endpoint
   if (path === "/chat" && req.method === "POST") {
     try {
       const body: ChatRequestBody = await req.json();
       const requestedModel = body.model || "openrouter/free";
       const latestUserMessage = [...body.messages].reverse().find((message) => message.role === "user");
-      const shouldResearch = body.web_research === true;
+      const intelligenceMode = body.intelligence_mode || "auto";
+      const shouldResearch = body.web_research === true || intelligenceMode === "research" || intelligenceMode === "action";
 
       if (shouldResearch && latestUserMessage) {
         const researchResults = await searchWeb(latestUserMessage.content);
@@ -349,7 +343,6 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Resolve the API key — prefer OpenRouter
       let apiKey: string | null = null;
       let provider = "openrouter";
       let actualModel = requestedModel;
@@ -405,7 +398,6 @@ Deno.serve(async (req: Request) => {
             );
             tokensOut = result.tokensOut;
           } else {
-            // Anthropic and Google would go here — for now, error gracefully
             writer.write(encoder.encode(
               `data: ${JSON.stringify({ error: `Provider ${provider} not yet implemented in this build. Use OpenRouter for multi-provider access.` })}\n\n`,
             ));

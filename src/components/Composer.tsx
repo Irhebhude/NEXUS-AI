@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, Square, Paperclip, Globe, ChevronDown } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, Globe, ChevronDown, BrainCircuit } from 'lucide-react';
 import { getAllModels } from '@/lib/providers';
 import type { ThemeColors } from '@/lib/theme';
+import type { IntelligenceMode } from '@/lib/types';
 
 interface ComposerProps {
   onSend: (content: string, webResearch?: boolean) => void;
@@ -12,6 +13,8 @@ interface ComposerProps {
   colors: ThemeColors;
   webResearch: boolean;
   onToggleWebResearch: () => void;
+  intelligenceMode: IntelligenceMode;
+  onIntelligenceModeChange: (mode: IntelligenceMode) => void;
 }
 
 export function Composer({
@@ -23,6 +26,8 @@ export function Composer({
   colors,
   webResearch,
   onToggleWebResearch,
+  intelligenceMode,
+  onIntelligenceModeChange,
 }: ComposerProps) {
   const [input, setInput] = useState('');
   const [showModelMenu, setShowModelMenu] = useState(false);
@@ -43,7 +48,6 @@ export function Composer({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -88,9 +92,31 @@ export function Composer({
   return (
     <div className="relative z-20 w-full flex-shrink-0 px-4 pb-4 pt-2 safe-bottom pointer-events-auto" style={{ background: colors.bg }}>
       <div className="max-w-3xl mx-auto">
-        {/* Toolbar */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {/* Model selector */}
+          <label
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium"
+            style={{
+              background: colors.bgTertiary,
+              color: colors.textSecondary,
+              border: `1px solid ${colors.border}`,
+            }}
+          >
+            <BrainCircuit size={13} />
+            <select
+              value={intelligenceMode}
+              onChange={(event) => onIntelligenceModeChange(event.target.value as IntelligenceMode)}
+              aria-label="Intelligence mode"
+              className="bg-transparent outline-none"
+              style={{ color: colors.textSecondary }}
+            >
+              <option value="auto">Auto</option>
+              <option value="general">General AI</option>
+              <option value="reasoning">Reasoning</option>
+              <option value="research">Research</option>
+              <option value="action">Action Tools</option>
+            </select>
+          </label>
+
           <div className="relative" ref={modelMenuRef}>
             <button
               onClick={() => setShowModelMenu(!showModelMenu)}
@@ -140,7 +166,6 @@ export function Composer({
             )}
           </div>
 
-          {/* Web research toggle */}
           <button
             onClick={onToggleWebResearch}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -155,7 +180,6 @@ export function Composer({
           </button>
         </div>
 
-        {/* Input area */}
         <div
           className="flex items-end gap-2 rounded-2xl p-2 transition-colors"
           style={{
@@ -163,7 +187,6 @@ export function Composer({
             border: `1px solid ${colors.border}`,
           }}
         >
-          {/* Attach button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -182,7 +205,6 @@ export function Composer({
             className="hidden"
           />
 
-          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={input}
@@ -196,7 +218,6 @@ export function Composer({
             style={{ color: colors.text }}
           />
 
-          {/* Send / Stop button */}
           {isStreaming ? (
             <button
               onClick={onStop}
@@ -229,7 +250,6 @@ export function Composer({
           </p>
         )}
 
-        {/* Footer hint */}
         <p className="text-center text-xs mt-2" style={{ color: colors.textMuted }}>
           NEXUS AI can make mistakes. Verify important information.
         </p>
