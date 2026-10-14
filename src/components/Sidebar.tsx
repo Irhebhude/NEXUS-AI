@@ -8,7 +8,6 @@ import {
   Check,
   X,
   Settings,
-  Brain,
   CircleAlert,
 } from 'lucide-react';
 import type { Conversation } from '@/lib/types';
@@ -67,7 +66,6 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           onClick={onClose}
@@ -86,10 +84,13 @@ export function Sidebar({
           borderRight: `1px solid ${colors.border}`,
         }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-3 py-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
           <div className="flex items-center gap-2 min-w-0">
-            <Brain size={20} style={{ color: colors.accent, flexShrink: 0 }} />
+            <img
+              src="/1791960291251_1%20copy.jpg"
+              alt="NEXUS AI logo"
+              className="h-8 w-8 rounded-lg object-cover flex-shrink-0"
+            />
             <div className="min-w-0">
               <span className="block font-semibold text-sm" style={{ color: colors.text }}>
                 NEXUS AI
@@ -99,54 +100,36 @@ export function Sidebar({
               </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="md:hidden p-1 rounded"
-            style={{ color: colors.textSecondary }}
-          >
+          <button onClick={onClose} className="md:hidden p-1 rounded" style={{ color: colors.textSecondary }}>
             <X size={18} />
           </button>
         </div>
 
-        {/* New Chat */}
         <div className="px-3 pt-3">
           <button
             onClick={onNewChat}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all hover:opacity-90"
-            style={{
-              background: colors.accent,
-              color: colors.accentText,
-            }}
+            style={{ background: colors.accent, color: colors.accentText }}
           >
             <Plus size={16} />
             New Chat
           </button>
         </div>
 
-        {/* Search */}
         <div className="px-3 py-2">
           <div className="relative">
-            <Search
-              size={14}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2"
-              style={{ color: colors.textMuted }}
-            />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: colors.textMuted }} />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search conversations..."
               className="w-full pl-8 pr-3 py-2 text-sm rounded-lg outline-none transition-colors"
-              style={{
-                background: colors.bgTertiary,
-                color: colors.text,
-                border: `1px solid ${colors.border}`,
-              }}
+              style={{ background: colors.bgTertiary, color: colors.text, border: `1px solid ${colors.border}` }}
             />
           </div>
         </div>
 
-        {/* Conversation list */}
         <div className="flex-1 overflow-y-auto px-2 py-1">
           {filtered.length === 0 ? (
             <div className="text-center py-8 px-4">
@@ -160,9 +143,7 @@ export function Sidebar({
               <div
                 key={conv.id}
                 className="group relative mb-0.5 rounded-lg transition-colors cursor-pointer"
-                style={{
-                  background: currentId === conv.id ? colors.bgHover : 'transparent',
-                }}
+                style={{ background: currentId === conv.id ? colors.bgHover : 'transparent' }}
                 onClick={() => editingId === conv.id ? undefined : onSelect(conv.id)}
               >
                 {editingId === conv.id ? (
@@ -177,65 +158,26 @@ export function Sidebar({
                       }}
                       autoFocus
                       className="flex-1 px-2 py-1 text-sm rounded outline-none"
-                      style={{
-                        background: colors.bg,
-                        color: colors.text,
-                        border: `1px solid ${colors.accent}`,
-                      }}
+                      style={{ background: colors.bg, color: colors.text, border: `1px solid ${colors.accent}` }}
                     />
-                    <button onClick={commitEdit} className="p-1 rounded" style={{ color: colors.accent }}>
-                      <Check size={14} />
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="p-1 rounded" style={{ color: colors.textMuted }}>
-                      <X size={14} />
-                    </button>
+                    <button onClick={commitEdit} className="p-1 rounded" style={{ color: colors.accent }}><Check size={14} /></button>
+                    <button onClick={() => setEditingId(null)} className="p-1 rounded" style={{ color: colors.textMuted }}><X size={14} /></button>
                   </div>
                 ) : confirmDelete === conv.id ? (
                   <div className="flex items-center gap-2 px-3 py-2">
-                    <span className="text-xs flex-1" style={{ color: colors.textSecondary }}>
-                      Delete?
-                    </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(conv.id); setConfirmDelete(null); }}
-                      className="p-1 rounded text-xs"
-                      style={{ color: colors.error }}
-                    >
-                      <Check size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
-                      className="p-1 rounded text-xs"
-                      style={{ color: colors.textMuted }}
-                    >
-                      <X size={14} />
-                    </button>
+                    <span className="text-xs flex-1" style={{ color: colors.textSecondary }}>Delete?</span>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(conv.id); setConfirmDelete(null); }} className="p-1 rounded text-xs" style={{ color: colors.error }}><Check size={14} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="p-1 rounded text-xs" style={{ color: colors.textMuted }}><X size={14} /></button>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-center gap-2 px-3 py-2.5 pr-16">
                       <MessageSquare size={14} style={{ color: colors.textMuted, flexShrink: 0 }} />
-                      <span
-                        className="text-sm truncate flex-1"
-                        style={{ color: currentId === conv.id ? colors.text : colors.textSecondary }}
-                      >
-                        {conv.title}
-                      </span>
+                      <span className="text-sm truncate flex-1" style={{ color: currentId === conv.id ? colors.text : colors.textSecondary }}>{conv.title}</span>
                     </div>
                     <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startEdit(conv); }}
-                        className="p-1.5 rounded hover:bg-black/10"
-                        style={{ color: colors.textMuted }}
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(conv.id); }}
-                        className="p-1.5 rounded hover:bg-black/10"
-                        style={{ color: colors.textMuted }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); startEdit(conv); }} className="p-1.5 rounded hover:bg-black/10" style={{ color: colors.textMuted }}><Pencil size={12} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(conv.id); }} className="p-1.5 rounded hover:bg-black/10" style={{ color: colors.textMuted }}><Trash2 size={12} /></button>
                     </div>
                   </>
                 )}
@@ -244,27 +186,16 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Provider status */}
         <div className="px-3 py-2" style={{ borderTop: `1px solid ${colors.border}` }}>
           <div className="flex items-center gap-2 text-xs" style={{ color: colors.textMuted }}>
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ background: providerAvailable ? colors.success : colors.warning }}
-            />
+            <div className="w-2 h-2 rounded-full" style={{ background: providerAvailable ? colors.success : colors.warning }} />
             <span>{providerAvailable ? 'AI provider connected' : 'No provider configured'}</span>
-            {!providerAvailable && (
-              <CircleAlert size={12} style={{ color: colors.warning }} />
-            )}
+            {!providerAvailable && <CircleAlert size={12} style={{ color: colors.warning }} />}
           </div>
         </div>
 
-        {/* Settings */}
         <div className="px-3 pb-3">
-          <button
-            onClick={onOpenSettings}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-            style={{ color: colors.textSecondary }}
-          >
+          <button onClick={onOpenSettings} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
             <Settings size={16} />
             Settings
           </button>
