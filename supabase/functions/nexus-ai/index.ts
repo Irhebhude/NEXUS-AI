@@ -175,21 +175,26 @@ async function getOpenRouterKey(): Promise<string | null> {
     });
     if (!resp.ok) return null;
     const data = await resp.json();
-    return data[0]?.value || null;
+    const key = data[0]?.value?.trim();
+    return key || null;
   } catch {
     return null;
   }
 }
 
-function getOpenRouterKeyFromEnv(): string | null {
-  return Deno.env.get("OPENROUTER_API_KEY") || null;
+function getOpenRouterKeysFromEnv(): string[] {
+  return [Deno.env.get("OPENROUTER_API_KEY"), Deno.env.get("VITE_OPENROUTER_API_KEY")]
+    .map((key) => key?.trim())
+    .filter((key): key is string => Boolean(key));
+}
+
+async function getOpenRouterKeys(): Promise<string[]> {
+  const dbKey = await getOpenRouterKey();
+  return [...new Set([...getOpenRouterKeysFromEnv(), dbKey].filter((key): key is string => Boolean(key)))];
 }
 
 async function getConfiguredProviders(): Promise<Record<string, boolean>> {
-  const dbKey = await getOpenRouterKey();
-  const envKey = getOpenRouterKeyFromEnv();
-
-  return { openrouter: Boolean(dbKey || envKey) };
+  return { openrouter: (await getOpenRouterKeys()).length > 0 };
 }
 
 async function streamOpenAICompatible(
@@ -232,7 +237,7 @@ async function streamOpenAICompatible(
     }
 
     if (response.status === 401) {
-      errMsg = `Authentication failed — the OpenRouter API key may be invalid: ${errMsg}`;
+      errMsg = "OpenRouter rejected the configured API key. Replace the deployed OPENROUTER_API_KEY with a valid key.";
     } else if (response.status === 429) {
       errMsg = `Rate limit reached — please wait and try again: ${errMsg}`;
     } else if (response.status === 402) {
@@ -299,12 +304,19 @@ Deno.serve(async (req: Request) => {
   if (path === "") path = "/";
 
   if ((path === "/" || path === "/status") && req.method === "GET") {
-    const providers = await getConfiguredProviders();
-    const available = Object.values(providers).some(Boolean);
-    return new Response(
-      JSON.stringify({ providers, available }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    try {
+      const providers = await getConfiguredProviders();
+      const available = Object.values(providers).some(Boolean);
+      return new Response(
+        JSON.stringify({ providers, available }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    } catch {
+      return new Response(
+        JSON.stringify({ providers: { openrouter: false }, available: false }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
   }
 
   if (path === "/chat" && req.method === "POST") {
@@ -336,7 +348,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const apiKey = (await getOpenRouterKey()) || getOpenRouterKeyFromEnv();
+      const apiKey = (await getOpenRouterKeys())[0];
       const provider = "openrouter";
       const actualModel = requestedModel;
 
