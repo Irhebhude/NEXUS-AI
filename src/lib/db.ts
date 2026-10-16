@@ -1,8 +1,6 @@
 import { supabase } from './supabase';
 import type { Conversation, ChatMessage, Memory, UsageMetric } from './types';
 
-// Database access layer — wraps Supabase queries with typed helpers
-
 export async function createConversation(title = 'New Conversation', model = 'default'): Promise<Conversation | null> {
   const { data, error } = await supabase
     .from('conversations')
@@ -115,7 +113,6 @@ export async function deleteMessage(id: string): Promise<void> {
   if (error) console.error('Failed to delete message:', error);
 }
 
-// Memory operations
 export async function getMemories(category?: string): Promise<Memory[]> {
   let query = supabase.from('memories').select('*').order('updated_at', { ascending: false });
   if (category && category !== 'all') {
@@ -158,7 +155,6 @@ export async function deleteMemory(id: string): Promise<void> {
   if (error) console.error('Failed to delete memory:', error);
 }
 
-// Usage metrics
 export async function recordUsage(metric: Omit<UsageMetric, 'id' | 'created_at'>): Promise<void> {
   const { error } = await supabase
     .from('usage_metrics')

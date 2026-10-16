@@ -1,7 +1,6 @@
 import type { ChatCompletionRequest, ChatCompletionResponse } from './types';
 
-const KEY = import.meta.env.VITE_OPENROUTER_API_KEY as string | undefined;
-const URL = "https://openrouter.ai/api/v1/chat/completions";
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-ai`;
 
 interface Callbacks {
   onToken: (t: string) => void;
@@ -9,46 +8,107 @@ interface Callbacks {
   onError: (e: string) => void;
 }
 
-export async function streamChatCompletion(req: ChatCompletionRequest, cb: Callbacks): Promise<void> {
-  if (!KEY) { cb.onError("Missing VITE_OPENROUTER_API_KEY in Cloudflare env"); return; }
+export async function streamChatCompletion(
+  req: ChatCompletionRequest,
+  cb: Callbacks,
+  signal?: AbortSignal
+): Promise<void> {
   try {
-    const res = await fetch(URL, {
-      method: "POST",
+    const res = await fetch(`${EDGE_FUNCTION_URL}/chat`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${KEY}`,
-        "HTTP-Referer": "https://archpoi.workers.dev",
-        "X-Title": "NEXUS AI"
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ model: req.model || "qwen/qwen3-next-80b-a3b-instruct:free", messages: req.messages, stream: true })
+      body: JSON.stringify({
+        model: req.model || 'openrouter/free',
+        messages: req.messages,
+        stream: true,
+        system_prompt: req.system_prompt,
+        temperature: req.temperature,
+        max_tokens: req.max_tokens,
+        web_research: req.web_research,
+        intelligence_mode: req.intelligence_mode,
+      }),
+      signal,
     });
-    if (!res.ok) { const txt = await res.text(); cb.onError(`OpenRouter ${res.status}: ${txt.slice(0,400)}`); return; }
+
+    if (!res.ok) {
+      const txt = await res.text();
+      let errMsg: string;
+      try {
+        const parsed = JSON.parse(txt);
+        errMsg = parsed.error || parsed.message || txt;
+      } catch {
+        errMsg = txt;
+      }
+      cb.onError(errMsg);
+      return;
+    }
+
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
-    let buf = ""; let full = "";
+    let buf = '';
+    let full = '';
+    let metadata: { model?: string; provider?: string; tokens_in?: number; tokens_out?: number; latency_ms?: number } = {};
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() || "";
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
+        if (!line.startsWith('data: ')) continue;
         const data = line.slice(6);
-        if (data === "[DONE]") continue;
+        if (data === '[DONE]') continue;
         try {
           const j = JSON.parse(data);
-          const tok = j.choices?.[0]?.delta?.content;
-          if (tok) { full += tok; cb.onToken(tok); }
+          if (j.token) {
+            full += j.token;
+            cb.onToken(j.token);
+          }
+          if (j.metadata) {
+            metadata = j.metadata;
+          }
+          if (j.error) {
+            cb.onError(j.error);
+            return;
+          }
         } catch {}
       }
     }
-    cb.onDone({ content: full, model: req.model, provider: "openrouter", tokens_in: 0, tokens_out: 0, latency_ms: 0 });
-  } catch (e: any) { cb.onError(e.message); }
+
+    cb.onDone({
+      content: full,
+      model: metadata.model || req.model,
+      provider: metadata.provider || 'openrouter',
+      tokens_in: metadata.tokens_in || 0,
+      tokens_out: metadata.tokens_out || 0,
+      latency_ms: metadata.latency_ms || 0,
+    });
+  } catch (e: any) {
+    if (e.name === 'AbortError') {
+      cb.onError('cancelled');
+    } else {
+      cb.onError(e.message);
+    }
+  }
 }
 
 export async function checkProviderStatus() {
-  return { providers: { openrouter:!!KEY }, available:!!KEY };
+  try {
+    const res = await fetch(`${EDGE_FUNCTION_URL}/status`, {
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!res.ok) return { providers: {} as Record<string, boolean>, available: false };
+    const data = await res.json();
+    return { providers: data.providers || {}, available: data.available || false };
+  } catch {
+    return { providers: {} as Record<string, boolean>, available: false };
+  }
 }
 
 export function classifyQuestion(_c: string) {
