@@ -9,6 +9,7 @@ import {
   X,
   Settings,
   CircleAlert,
+  BookOpen,
 } from 'lucide-react';
 import type { Conversation } from '@/lib/types';
 import type { ThemeColors } from '@/lib/theme';
@@ -25,6 +26,7 @@ interface SidebarProps {
   onDelete: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onOpenSettings: () => void;
+  onOpenKnowledge: () => void;
 }
 
 export function Sidebar({
@@ -39,6 +41,7 @@ export function Sidebar({
   onDelete,
   onRename,
   onOpenSettings,
+  onOpenKnowledge,
 }: SidebarProps) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -86,11 +89,9 @@ export function Sidebar({
       >
         <div className="flex items-center justify-between px-3 py-3" style={{ borderBottom: `1px solid ${colors.border}` }}>
           <div className="flex items-center gap-2 min-w-0">
-            <img
-              src="/1791960291251_1%20copy.jpg"
-              alt="NEXUS AI logo"
-              className="h-8 w-8 rounded-lg object-cover flex-shrink-0"
-            />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})` }}>
+              <span className="text-sm font-bold" style={{ color: colors.accentText }}>N</span>
+            </div>
             <div className="min-w-0">
               <span className="block font-semibold text-sm" style={{ color: colors.text }}>
                 NEXUS AI
@@ -194,7 +195,11 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="px-3 pb-3">
+        <div className="px-3 pb-3 space-y-1">
+          <button onClick={onOpenKnowledge} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
+            <BookOpen size={16} />
+            AI Knowledge Base
+          </button>
           <button onClick={onOpenSettings} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
             <Settings size={16} />
             Settings

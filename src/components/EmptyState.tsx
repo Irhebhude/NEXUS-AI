@@ -17,8 +17,8 @@ export function EmptyState({ colors, onExampleClick }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-full px-4 py-8 safe-top">
       <div className="mb-6">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})` }}>
-          <img src="/1791960291251_1%20copy.jpg" alt="NEXUS AI logo" className="h-full w-full rounded-2xl object-cover" />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${colors.accent}, ${colors.accentHover})` }}>
+          <span className="text-2xl font-bold" style={{ color: colors.accentText }}>N</span>
         </div>
       </div>
 
