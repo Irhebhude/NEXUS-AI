@@ -61,7 +61,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
   const verification = metadata.verification;
 
   useEffect(() => {
-    // Attach copy handlers to code blocks
     if (!contentRef.current) return;
     const buttons = contentRef.current.querySelectorAll('.code-copy');
     const handlers: (() => void)[] = [];
@@ -94,7 +93,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
   return (
     <div className="group message-bubble" style={{ marginBottom: '24px' }}>
       <div className="flex gap-3 max-w-3xl mx-auto px-4">
-        {/* Avatar */}
         <div
           className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5"
           style={{
@@ -109,9 +107,7 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
           )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
-          {/* Role label */}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-semibold" style={{ color: colors.textSecondary }}>
               {isUser ? 'You' : 'NEXUS AI'}
@@ -126,7 +122,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
             )}
           </div>
 
-          {/* Message content */}
           <div
             ref={contentRef}
             className="markdown-content text-sm leading-relaxed"
@@ -134,7 +129,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
             dangerouslySetInnerHTML={{ __html: html || (isStreaming ? '<span class="typing-indicator">Thinking...</span>' : '') }}
           />
 
-          {/* Streaming cursor */}
           {isStreaming && !isUser && message.content && (
             <span
               className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm"
@@ -142,7 +136,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
             />
           )}
 
-          {/* Metadata bar */}
           {!isStreaming && !isUser && message.content && !message.content.startsWith('*Error') && (
             <div className="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
@@ -172,7 +165,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
             </div>
           )}
 
-          {/* Verification badge */}
           {verification && !isStreaming && (
             <div className="mt-2">
               <button
@@ -214,7 +206,6 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
             </div>
           )}
 
-          {/* Error display */}
           {metadata.error && !isStreaming && (
             <div
               className="mt-2 p-2.5 rounded-lg text-xs flex items-start gap-2"
@@ -229,5 +220,3 @@ export function MessageBubble({ message, colors, isStreaming, onRegenerate, isLa
     </div>
   );
 }
-
-
