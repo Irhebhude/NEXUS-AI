@@ -48,7 +48,7 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [model, setModel] = useState('openrouter/free');
+  const [model, setModel] = useState('openrouter/auto');
   const [providerStatus, setProviderStatus] = useState<{ providers: Record<string, boolean>; available: boolean } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sendLockRef = useRef(false);

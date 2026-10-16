@@ -4,7 +4,7 @@ import type { AIProviderConfig } from './types';
 // OpenRouter proxies to the underlying providers (OpenAI, Anthropic, Google, etc.)
 
 export const OPENROUTER_MODELS = [
-  'openrouter/free',
+  'openrouter/auto',
   'openai/gpt-4o',
   'openai/gpt-4o-mini',
   'openai/gpt-4-turbo',
