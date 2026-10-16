@@ -21,7 +21,7 @@ export async function streamChatCompletion(
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        model: req.model || 'openrouter/free',
+        model: req.model || 'openrouter/auto',
         messages: req.messages,
         stream: true,
         system_prompt: req.system_prompt,
