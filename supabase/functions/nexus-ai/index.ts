@@ -188,15 +188,8 @@ function getOpenRouterKeyFromEnv(): string | null {
 async function getConfiguredProviders(): Promise<Record<string, boolean>> {
   const dbKey = await getOpenRouterKey();
   const envKey = getOpenRouterKeyFromEnv();
-  const openrouterKey = dbKey || envKey;
 
-  return {
-    openrouter: !!openrouterKey,
-    openai: !!Deno.env.get("OPENAI_API_KEY"),
-    anthropic: !!Deno.env.get("ANTHROPIC_API_KEY"),
-    groq: !!Deno.env.get("GROQ_API_KEY"),
-    google: !!Deno.env.get("GOOGLE_AI_API_KEY"),
-  };
+  return { openrouter: Boolean(dbKey || envKey) };
 }
 
 async function streamOpenAICompatible(
@@ -333,7 +326,7 @@ Deno.serve(async (req: Request) => {
 
       const providers = await getConfiguredProviders();
 
-      if (!providers.openrouter && !providers.openai && !providers.anthropic && !providers.groq && !providers.google) {
+      if (!providers.openrouter) {
         return new Response(
           JSON.stringify({
             error:
@@ -343,28 +336,9 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      let apiKey: string | null = null;
-      let provider = "openrouter";
-      let actualModel = requestedModel;
-
-      if (providers.openrouter) {
-        const dbKey = await getOpenRouterKey();
-        apiKey = dbKey || getOpenRouterKeyFromEnv();
-        provider = "openrouter";
-        actualModel = requestedModel;
-      } else if (providers.openai) {
-        apiKey = Deno.env.get("OPENAI_API_KEY")!;
-        provider = "openai";
-      } else if (providers.anthropic) {
-        apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
-        provider = "anthropic";
-      } else if (providers.groq) {
-        apiKey = Deno.env.get("GROQ_API_KEY")!;
-        provider = "groq";
-      } else if (providers.google) {
-        apiKey = Deno.env.get("GOOGLE_AI_API_KEY")!;
-        provider = "google";
-      }
+      const apiKey = (await getOpenRouterKey()) || getOpenRouterKeyFromEnv();
+      const provider = "openrouter";
+      const actualModel = requestedModel;
 
       if (!apiKey) {
         return new Response(
@@ -382,26 +356,16 @@ Deno.serve(async (req: Request) => {
         let tokensOut = 0;
 
         try {
-          if (provider === "openrouter" || provider === "openai" || provider === "groq") {
-            const baseUrl = provider === "openrouter"
-              ? OPENROUTER_BASE_URL
-              : provider === "groq"
-              ? "https://api.groq.com/openai/v1"
-              : "https://api.openai.com/v1";
-
-            const extraHeaders = provider === "openrouter"
-              ? { "HTTP-Referer": "https://nexus-ai.app", "X-Title": "NEXUS AI" }
-              : {};
-
-            const result = await streamOpenAICompatible(
-              baseUrl, apiKey, body, actualModel, writer, encoder, extraHeaders,
-            );
-            tokensOut = result.tokensOut;
-          } else {
-            writer.write(encoder.encode(
-              `data: ${JSON.stringify({ error: `Provider ${provider} not yet implemented in this build. Use OpenRouter for multi-provider access.` })}\n\n`,
-            ));
-          }
+          const result = await streamOpenAICompatible(
+            OPENROUTER_BASE_URL,
+            apiKey,
+            body,
+            actualModel,
+            writer,
+            encoder,
+            { "HTTP-Referer": "https://nexus-ai.app", "X-Title": "NEXUS AI" },
+          );
+          tokensOut = result.tokensOut;
 
           const latencyMs = Date.now() - startTime;
           writer.write(encoder.encode(
