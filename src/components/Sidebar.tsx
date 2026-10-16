@@ -10,6 +10,7 @@ import {
   Settings,
   CircleAlert,
   BookOpen,
+  Database,
 } from 'lucide-react';
 import type { Conversation } from '@/lib/types';
 import type { ThemeColors } from '@/lib/theme';
@@ -27,6 +28,7 @@ interface SidebarProps {
   onRename: (id: string, title: string) => void;
   onOpenSettings: () => void;
   onOpenKnowledge: () => void;
+  onOpenDatabases: () => void;
 }
 
 export function Sidebar({
@@ -42,6 +44,7 @@ export function Sidebar({
   onRename,
   onOpenSettings,
   onOpenKnowledge,
+  onOpenDatabases,
 }: SidebarProps) {
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -199,6 +202,10 @@ export function Sidebar({
           <button onClick={onOpenKnowledge} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
             <BookOpen size={16} />
             AI Knowledge Base
+          </button>
+          <button onClick={onOpenDatabases} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
+            <Database size={16} />
+            Databases
           </button>
           <button onClick={onOpenSettings} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors" style={{ color: colors.textSecondary }}>
             <Settings size={16} />
