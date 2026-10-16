@@ -10,6 +10,9 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['lucide-react'],
+    exclude: ['lucide-react', 'sql.js', '@duckdb/duckdb-wasm', 'level-js'],
+  },
+  worker: {
+    format: 'es',
   },
 });
