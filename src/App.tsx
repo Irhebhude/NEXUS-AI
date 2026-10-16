@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Menu, Brain, AlertCircle, X, WifiOff } from 'lucide-react';
+import { Menu, Brain, AlertCircle, X, WifiOff, BookOpen } from 'lucide-react';
 import { useChat } from '@/hooks/useChat';
 import { Sidebar } from '@/components/Sidebar';
 import { MessageBubble } from '@/components/MessageBubble';
 import { Composer } from '@/components/Composer';
 import { EmptyState } from '@/components/EmptyState';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { KnowledgePanel } from '@/components/KnowledgePanel';
 import { getThemeColors, type Theme } from '@/lib/theme';
 import { getMemories, addMemory, deleteMemory } from '@/lib/db';
 import { supabaseEnvConfigured } from '@/lib/supabase';
@@ -18,6 +19,7 @@ function App() {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [webResearch, setWebResearch] = useState(false);
   const [intelligenceMode, setIntelligenceMode] = useState<IntelligenceMode>('auto');
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -123,6 +125,10 @@ function App() {
           setSettingsOpen(true);
           setSidebarOpen(false);
         }}
+        onOpenKnowledge={() => {
+          setKnowledgeOpen(true);
+          setSidebarOpen(false);
+        }}
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -151,6 +157,17 @@ function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setKnowledgeOpen(true)}
+              className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg transition-colors hover:opacity-80"
+              style={{
+                background: colors.bgTertiary,
+                color: colors.textSecondary,
+              }}
+            >
+              <BookOpen size={14} />
+              <span className="hidden sm:inline">Knowledge</span>
+            </button>
             {chat.error && (
               <div className="flex items-center gap-1 text-xs" style={{ color: colors.error }}>
                 <AlertCircle size={14} />
@@ -249,6 +266,12 @@ function App() {
         memories={memories}
         onAddMemory={handleAddMemory}
         onDeleteMemory={handleDeleteMemory}
+      />
+
+      <KnowledgePanel
+        isOpen={knowledgeOpen}
+        onClose={() => setKnowledgeOpen(false)}
+        colors={colors}
       />
     </div>
   );
