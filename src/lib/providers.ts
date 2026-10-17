@@ -1,36 +1,25 @@
 import type { AIProviderConfig } from './types';
 
-// All models are accessed through OpenRouter using a single API key.
-// OpenRouter proxies to the underlying providers (OpenAI, Anthropic, Google, etc.)
+// All models are accessed through Groq using one server-side API key.
 
-export const OPENROUTER_MODELS = [
-  'openrouter/auto',
-  'openai/gpt-4o',
-  'openai/gpt-4o-mini',
-  'openai/gpt-4-turbo',
-  'openai/gpt-3.5-turbo',
-  'anthropic/claude-3.5-sonnet',
-  'anthropic/claude-3-opus',
-  'anthropic/claude-3-haiku',
-  'google/gemini-2.0-flash-exp:free',
-  'google/gemini-1.5-pro',
-  'google/gemini-1.5-flash',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'meta-llama/llama-3.2-3b-instruct:free',
-  'openai/gpt-oss-120b:free',
-  'openai/gpt-oss-20b:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'qwen/qwen3-next-80b-a3b-instruct:free',
-  'groq/llama-3.3-70b-versatile',
-  'groq/llama-3.1-8b-instant',
-  'groq/mixtral-8x7b-32768',
+export const GROQ_MODELS = [
+  'openai/gpt-oss-120b',
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-safeguard-20b',
+  'qwen/qwen3-32b',
+  'meta-llama/llama-prompt-guard-2-22m',
+  'meta-llama/llama-prompt-guard-2-86m',
+  'canopylabs/orpheus-v1-english',
+  'canopylabs/orpheus-arabic-saudi',
+  'whisper-large-v3',
+  'whisper-large-v3-turbo',
 ];
 
 export const PROVIDER_REGISTRY: AIProviderConfig[] = [
   {
-    id: 'openrouter',
-    name: 'OpenRouter (All Models)',
-    models: OPENROUTER_MODELS,
+    id: 'groq',
+    name: 'Groq (Current Models)',
+    models: GROQ_MODELS,
     capabilities: {
       streaming: true,
       toolUse: true,

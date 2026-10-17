@@ -21,7 +21,7 @@ export async function streamChatCompletion(
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
-        model: req.model || 'openrouter/auto',
+        model: req.model || 'openai/gpt-oss-120b',
         messages: req.messages,
         stream: true,
         system_prompt: req.system_prompt,
@@ -82,7 +82,7 @@ export async function streamChatCompletion(
     cb.onDone({
       content: full,
       model: metadata.model || req.model,
-      provider: metadata.provider || 'openrouter',
+      provider: metadata.provider || 'groq',
       tokens_in: metadata.tokens_in || 0,
       tokens_out: metadata.tokens_out || 0,
       latency_ms: metadata.latency_ms || 0,
