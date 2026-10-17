@@ -7,12 +7,6 @@ export const GROQ_MODELS = [
   'openai/gpt-oss-20b',
   'openai/gpt-oss-safeguard-20b',
   'qwen/qwen3-32b',
-  'meta-llama/llama-prompt-guard-2-22m',
-  'meta-llama/llama-prompt-guard-2-86m',
-  'canopylabs/orpheus-v1-english',
-  'canopylabs/orpheus-arabic-saudi',
-  'whisper-large-v3',
-  'whisper-large-v3-turbo',
 ];
 
 export const PROVIDER_REGISTRY: AIProviderConfig[] = [

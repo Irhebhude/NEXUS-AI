@@ -4,41 +4,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-interface ChatRequest {
-  messages: ChatMessage[];
-  model?: string;
-  temperature?: number;
-  max_tokens?: number;
-  system_prompt?: string;
-}
+interface ChatMessage { role: "user" | "assistant" | "system"; content: string; }
+interface ChatRequest { messages: ChatMessage[]; model?: string; temperature?: number; max_tokens?: number; system_prompt?: string; }
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "openai/gpt-oss-120b";
+const GROQ_CHAT_MODELS = new Set([
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "openai/gpt-oss-safeguard-20b",
+  "qwen/qwen3-32b",
+]);
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function getGroqKey(): string | null {
-  const key = Deno.env.get("GROQ_API_KEY")?.trim();
-  console.info("[nexus-ai] Groq key configured:", Boolean(key));
-  return key || null;
+function getKey(): string | null {
+  return Deno.env.get("GROQ_API_KEY")?.trim() || null;
 }
 
-async function streamGroq(upstream: Response, model: string): Promise<ReadableStream<Uint8Array>> {
+async function normalizeStream(upstream: Response, model: string): Promise<ReadableStream<Uint8Array>> {
   const reader = upstream.body!.getReader();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
-  const output = new TransformStream<Uint8Array, Uint8Array>();
-  const writer = output.writable.getWriter();
+  const stream = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = stream.writable.getWriter();
 
   void (async () => {
     let buffer = "";
@@ -73,47 +64,38 @@ async function streamGroq(upstream: Response, model: string): Promise<ReadableSt
     }
   })();
 
-  return output.readable;
+  return stream.readable;
 }
 
 Deno.serve(async (request: Request) => {
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
+  if (request.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
   const path = new URL(request.url).pathname.replace(/^\/nexus-ai/, "") || "/";
+  const key = getKey();
   if ((path === "/" || path === "/status") && request.method === "GET") {
-    const configured = Boolean(getGroqKey());
-    return json({ providers: { groq: configured }, available: configured });
+    return json({ providers: { groq: Boolean(key) }, available: Boolean(key) });
   }
-
   if (path !== "/chat" || request.method !== "POST") return json({ error: "Not found" }, 404);
+  if (!key) return json({ error: "Groq API key is not configured." }, 503);
 
   try {
-    const apiKey = getGroqKey();
-    if (!apiKey) return json({ error: "Groq API key is not configured. Add GROQ_API_KEY as a server secret." }, 503);
-
     const body: ChatRequest = await request.json();
-    const model = body.model || DEFAULT_MODEL;
+    const model = body.model && GROQ_CHAT_MODELS.has(body.model) ? body.model : DEFAULT_MODEL;
     const messages = body.system_prompt
       ? [{ role: "system" as const, content: body.system_prompt }, ...body.messages]
       : body.messages;
     const upstream = await fetch(GROQ_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({ model, messages, temperature: body.temperature ?? 0.7, max_tokens: body.max_tokens, stream: true }),
     });
-
     if (!upstream.ok) {
-      if (upstream.status === 401) return json({ error: "Invalid Groq API key. Replace GROQ_API_KEY with a valid key." }, 401);
+      if (upstream.status === 401) return json({ error: "Invalid Groq API key." }, 401);
       if (upstream.status === 404) return json({ error: `Groq model not found: ${model}` }, 404);
-      return json({ error: "Groq could not complete the request. Please try again." }, upstream.status);
+      return json({ error: "Groq could not complete the request." }, upstream.status);
     }
-
-    return new Response(await streamGroq(upstream, model), {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
-    });
+    return new Response(await normalizeStream(upstream, model), { headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
   } catch {
-    return json({ error: "The AI request could not be completed. Please try again." }, 500);
+    return json({ error: "The AI request could not be completed." }, 500);
   }
 });
