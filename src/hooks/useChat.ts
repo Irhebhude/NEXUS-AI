@@ -48,7 +48,7 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [model, setModel] = useState('openrouter/auto');
+  const [model, setModel] = useState('openai/gpt-oss-120b');
   const [providerStatus, setProviderStatus] = useState<{ providers: Record<string, boolean>; available: boolean } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sendLockRef = useRef(false);
@@ -135,7 +135,7 @@ export function useChat() {
   ) => {
     if (!content.trim() || isStreaming || sendLockRef.current) return;
     if (providerStatus && !providerStatus.available) {
-      setError('Please add your OpenRouter API Key in Secrets settings to enable AI features.');
+      setError('Please add your Groq API key in the server settings to enable AI features.');
       return;
     }
     sendLockRef.current = true;
