@@ -1,7 +1,7 @@
 // NEXUS AI — Edge Function v3: Groq AI Orchestration Proxy
 //
 // Primary provider: Groq (OpenAI-compatible API)
-// API key is read from the system_config table in Supabase.
+// API key is read from the GROQ_API_KEY edge function secret.
 //
 // Routes (relative to function root):
 //   GET  /        — provider status
@@ -72,7 +72,7 @@ function normalizeSearchUrl(rawUrl: string): string | null {
 
 function parseSearchHtml(html: string): SearchResult[] {
   const results: SearchResult[] = [];
-  const anchorPattern = /<a\b[^>]*class=["'][^"']*(?:result__a|result-link)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
+  const anchorPattern = /<a\b[^>]*class=["'][^"']*(?:result__a|result-link)[^"']*['"][^>]*>[\s\S]*?<\/a>/gi;
   let anchorMatch: RegExpExecArray | null;
 
   while ((anchorMatch = anchorPattern.exec(html)) && results.length < 5) {
@@ -83,7 +83,7 @@ function parseSearchHtml(html: string): SearchResult[] {
     if (!url || !rawTitle) continue;
 
     const block = html.slice(anchorMatch.index, anchorMatch.index + 2400);
-    const snippet = block.match(/class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)(?:<\/a>|<\/div>|<\/td>)/i)?.[1] || "";
+    const snippet = block.match(/class=["'][^"']*(?:result__snippet|result-snippet)[^"']*['"][^>]*>([\s\S]*?)(?:<\/a>|<\/div>|<\/td>)/i)?.[1] || "";
     results.push({
       title: decodeHtml(rawTitle).trim(),
       url,
@@ -166,40 +166,13 @@ function buildResearchContext(results: SearchResult[]): string {
   ].join("\n\n");
 }
 
-async function getGroqKey(): Promise<string | null> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) return null;
-
-  try {
-    const resp = await fetch(`${supabaseUrl}/rest/v1/system_config?key=eq.${encodeURIComponent("GROQ_API_KEY")}&select=value`, {
-      headers: {
-        "apikey": serviceKey,
-        "Authorization": `Bearer ${serviceKey}`,
-      },
-    });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const key = data[0]?.value?.trim();
-    return key || null;
-  } catch {
-    return null;
-  }
-}
-
-function getGroqKeysFromEnv(): string[] {
-  return [Deno.env.get("GROQ_API_KEY"), Deno.env.get("VITE_GROQ_API_KEY")]
-    .map((key) => key?.trim())
-    .filter((key): key is string => Boolean(key));
-}
-
-async function getGroqKeys(): Promise<string[]> {
-  const dbKey = await getGroqKey();
-  return [...new Set([dbKey, ...getGroqKeysFromEnv()].filter((key): key is string => Boolean(key)))];
+function getGroqKeys(): string[] {
+  const key = Deno.env.get("GROQ_API_KEY")?.trim();
+  return key ? [key] : [];
 }
 
 async function getConfiguredProviders(): Promise<Record<string, boolean>> {
-  const keys = await getGroqKeys();
+  const keys = getGroqKeys();
   console.info('[nexus-ai] Groq key configured:', keys.length > 0);
   return { groq: keys.length > 0 };
 }
@@ -355,7 +328,7 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const apiKey = (await getGroqKeys())[0];
+      const apiKey = getGroqKeys()[0];
       const provider = "groq";
       const actualModel = GROQ_CHAT_MODELS.has(requestedModel) ? requestedModel : "openai/gpt-oss-120b";
       body.model = actualModel;

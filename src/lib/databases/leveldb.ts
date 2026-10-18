@@ -4,11 +4,11 @@ import type { DatabaseAdapter, DatabaseEngineInfo, QueryResult } from './types';
 
 export class LevelDBAdapter implements DatabaseAdapter {
   id = 'leveldb' as const;
-  private db: Level | null = null;
+  private db: any = null;
 
   async initialize(): Promise<void> {
     if (this.db) return;
-    this.db = new Level('nexus-leveldb', { version: 1 });
+    this.db = new (Level as any)('nexus-leveldb', { version: 1 });
   }
 
   isInitialized(): boolean {
