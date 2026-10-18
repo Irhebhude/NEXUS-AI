@@ -15,6 +15,7 @@ interface ComposerProps {
   onToggleWebResearch: () => void;
   intelligenceMode: IntelligenceMode;
   onIntelligenceModeChange: (mode: IntelligenceMode) => void;
+  aiAvailable: boolean;
 }
 
 export function Composer({
@@ -28,6 +29,7 @@ export function Composer({
   onToggleWebResearch,
   intelligenceMode,
   onIntelligenceModeChange,
+  aiAvailable,
 }: ComposerProps) {
   const [input, setInput] = useState('');
   const [showModelMenu, setShowModelMenu] = useState(false);
@@ -56,7 +58,7 @@ export function Composer({
   }, [input]);
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming) return;
+    if (!input.trim() || isStreaming || !aiAvailable) return;
     onSend(input.trim(), webResearch);
     setInput('');
   };
@@ -120,7 +122,8 @@ export function Composer({
           <div className="relative" ref={modelMenuRef}>
             <button
               onClick={() => setShowModelMenu(!showModelMenu)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              disabled={!aiAvailable}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
               style={{
                 background: colors.bgTertiary,
                 color: colors.textSecondary,
@@ -168,6 +171,7 @@ export function Composer({
 
           <button
             onClick={onToggleWebResearch}
+            disabled={!aiAvailable}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={{
               background: webResearch ? colors.accent + '20' : colors.bgTertiary,
@@ -190,7 +194,7 @@ export function Composer({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isStreaming}
+            disabled={isStreaming || !aiAvailable}
             className="flex-shrink-0 p-2 rounded-lg transition-colors disabled:opacity-40"
             style={{ color: colors.textSecondary }}
             title="Attach a text file"
@@ -210,9 +214,9 @@ export function Composer({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isStreaming}
+            disabled={isStreaming || !aiAvailable}
             aria-label="Message NEXUS AI"
-            placeholder="Ask anything. Examine the evidence. Understand the answer."
+            placeholder={aiAvailable ? 'Ask anything. Examine the evidence. Understand the answer.' : 'Add your Groq API key to enable AI features.'}
             rows={1}
             className="min-w-0 flex-1 resize-none bg-transparent outline-none text-sm py-2 max-h-48 disabled:opacity-60"
             style={{ color: colors.text }}
@@ -232,7 +236,7 @@ export function Composer({
           ) : (
             <button
               onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
+              disabled={!input.trim() || isStreaming || !aiAvailable}
               className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center transition-all hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
               style={{
                 background: input.trim() ? colors.accent : colors.bgTertiary,

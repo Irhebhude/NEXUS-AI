@@ -92,11 +92,11 @@ function App() {
   const hasMessages = chat.messages.length > 0;
 
   const aiAvailable = chat.providerStatus?.available ?? false;
-  const providerCredentialError = chat.error?.toLowerCase().includes('openrouter') || chat.error?.toLowerCase().includes('authentication failed');
+  const providerCredentialError = chat.error?.toLowerCase().includes('groq') || chat.error?.toLowerCase().includes('authentication failed');
   const backendError = !supabaseEnvConfigured
     ? 'Supabase is not configured — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.'
     : (chat.providerStatus && !aiAvailable) || providerCredentialError
-    ? 'Please add your OpenRouter API Key in Secrets settings to enable AI features.'
+    ? 'Please add your Groq API key in the server settings to enable AI features.'
     : chat.error && chat.error !== 'cancelled'
     ? chat.error
     : null;
