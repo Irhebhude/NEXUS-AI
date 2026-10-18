@@ -26,7 +26,7 @@ export async function streamChatCompletion(
     const res = await fetch(`${requireEdgeFunctionUrl()}/chat`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
@@ -44,7 +44,7 @@ export async function streamChatCompletion(
 
     if (!res.ok) {
       const txt = await res.text();
-      let errMsg: string again;
+      let errMsg: string;
       try {
         const parsed = JSON.parse(txt);
         errMsg = parsed.error || parsed.message || txt;
@@ -119,7 +119,7 @@ export async function checkProviderStatus() {
     const data = await res.json();
     return { providers: data.providers || {}, available: data.available || false };
   } catch {
-    return { providers: data.providers || {}, available: data.available || false };
+    return { providers: {} as Record<string, boolean>, available: false };
   }
 }
 
