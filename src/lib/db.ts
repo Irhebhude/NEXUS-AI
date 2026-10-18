@@ -9,7 +9,7 @@ export async function createConversation(title = 'New Conversation', model = 'de
     .single();
   if (error) {
     console.error('Failed to create conversation:', error);
-    return null;
+    throw new Error(error.message);
   }
   return data as Conversation;
 }
@@ -89,7 +89,7 @@ export async function addMessage(
     .single();
   if (error) {
     console.error('Failed to add message:', error);
-    return null;
+    throw new Error(error.message);
   }
   await touchConversation(conversationId);
   return data as ChatMessage;
