@@ -1,13 +1,9 @@
 import type { ChatCompletionRequest, ChatCompletionResponse } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://drakpjckolwbjbgaorvp.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyYWtwamNrb2x3YmpiZ2FvcnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTUxODIsImV4cCI6MjEwNzczMTE4Mn0.MUqc7REwUR5LvW_VdW0r-4fsLrkatIantxp1L4i_W6M';
-const EDGE_FUNCTION_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/nexus-ai` : null;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/nexus-ai`;
 
 function requireEdgeFunctionUrl(): string {
-  if (!EDGE_FUNCTION_URL || !SUPABASE_ANON_KEY) {
-    throw new Error('Frontend is missing its Supabase settings. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your hosting provider\'s build settings, then redeploy.');
-  }
   return EDGE_FUNCTION_URL;
 }
 
@@ -27,7 +23,6 @@ export async function streamChatCompletion(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         model: req.model || 'openai/gpt-oss-120b',
@@ -107,13 +102,8 @@ export async function streamChatCompletion(
 
 export async function checkProviderStatus() {
   try {
-    if (!EDGE_FUNCTION_URL || !SUPABASE_ANON_KEY) {
-      return { providers: {} as Record<string, boolean>, available: false };
-    }
     const res = await fetch(`${EDGE_FUNCTION_URL}/status`, {
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      },
+      headers: {},
     });
     if (!res.ok) return { providers: {} as Record<string, boolean>, available: false };
     const data = await res.json();

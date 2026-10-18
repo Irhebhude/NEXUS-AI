@@ -38,10 +38,11 @@ export class DuckDBAdapter implements DatabaseAdapter {
     if (!this.db) return { error: 'DuckDB not initialized' };
     try {
       if (!this.connection) return { error: 'DuckDB connection not initialized' };
-      const result = await this.connection.query(sql);
-      const columns = result.columnNames;
-      const rows: unknown[][] = [];
-      for (const row of result.rows) rows.push(columns.map((col: string) => (row as Record<string, unknown>)[col]));
+      const result = await this.connection.query(sql) as any;
+      const columns = result.schema.fields.map((field: { name: string }) => field.name);
+      const rows: unknown[][] = result.toArray().map((row: Record<string, unknown>) =>
+        columns.map((column: string) => row[column])
+      );
       return { columns, rows };
     } catch (e) {
       return { error: (e as Error).message };
@@ -50,18 +51,49 @@ export class DuckDBAdapter implements DatabaseAdapter {
 
   async put(key: string, value: unknown): Promise<QueryResult> {
     const valStr = typeof value === 'string' ? value : JSON.stringify(value);
-    return this.execute(`INSERT OR REPLACE INTO nexus_data (key, value) VALUES ('${key.replace(/'/g, "''")}', '${valStr.replace(/'/g, "''")}')`);
+    return this.execute(
+      `INSERT OR REPLACE INTO nexus_data (key, value) VALUES ('${key.replace(/'/g, "''")}', '${valStr.replace(/'/g, "''")}')`
+    );
   }
 
   async get(key: string): Promise<unknown> {
-    const result = await this.query(`SELECT value FROM nexus_data WHERE key = '${key.replace(/'/g, "''")}' LIMIT 1`);
+    const result = await this.query(
+      `SELECT value FROM nexus_data WHERE key = '${key.replace(/'/g, "''")}' LIMIT 1`
+    );
     if (result.error || !result.rows || result.rows.length === 0) return null;
     return result.rows[0][0];
   }
 
-  async delete(key: string): Promise<QueryResult> { return this.execute(`DELETE FROM nexus_data WHERE key = '${key.replace(/'/g, "''")}'`); }
-  async list(): Promise<{ key: string; value: unknown }[]> { const result = await this.query('SELECT key, value FROM nexus_data'); if (result.error || !result.rows) return []; return result.rows.map((row) => ({ key: String(row[0]), value: row[1] })); }
-  async clear(): Promise<void> { await this.execute('DELETE FROM nexus_data'); }
-  async close(): Promise<void> { await this.connection?.close(); await this.db?.terminate(); this.connection = null; this.db = null; }
-  getInfo(): DatabaseEngineInfo { return { id: 'duckdb', name: 'DuckDB (WASM)', category: 'analytical', description: 'In-browser analytical SQL engine. Optimized for OLAP queries, aggregations, and large datasets.', icon: 'BarChart3', persistent: false, initialized: this.isInitialized() }; }
+  async delete(key: string): Promise<QueryResult> {
+    return this.execute(`DELETE FROM nexus_data WHERE key = '${key.replace(/'/g, "''")}'`);
+  }
+
+  async list(): Promise<{ key: string; value: unknown }[]> {
+    const result = await this.query('SELECT key, value FROM nexus_data');
+    if (result.error || !result.rows) return [];
+    return result.rows.map((row) => ({ key: String(row[0]), value: row[1] }));
+  }
+
+  async clear(): Promise<void> {
+    await this.execute('DELETE FROM nexus_data');
+  }
+
+  async close(): Promise<void> {
+    await this.connection?.close();
+    await this.db?.terminate();
+    this.connection = null;
+    this.db = null;
+  }
+
+  getInfo(): DatabaseEngineInfo {
+    return {
+      id: 'duckdb',
+      name: 'DuckDB (WASM)',
+      category: 'analytical',
+      description: 'In-browser analytical SQL engine. Optimized for OLAP queries, aggregations, and large datasets.',
+      icon: 'BarChart3',
+      persistent: false,
+      initialized: this.isInitialized(),
+    };
+  }
 }
