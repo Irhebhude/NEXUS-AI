@@ -1,7 +1,7 @@
 import type { ChatCompletionRequest, ChatCompletionResponse } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://drakpjckolwbjbgaorvp.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyYWtwamNrb2x3YmpiZ2FvcnZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTUxODIsImV4cCI6MjEwNzczMTE4Mn0.MUqc7REwUR5LvW_VdW0r-4fsLrkatIantxp1L4i_W6M';
 const EDGE_FUNCTION_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/nexus-ai` : null;
 
 function requireEdgeFunctionUrl(): string {
@@ -26,7 +26,7 @@ export async function streamChatCompletion(
     const res = await fetch(`${requireEdgeFunctionUrl()}/chat`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application json',
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
@@ -44,7 +44,7 @@ export async function streamChatCompletion(
 
     if (!res.ok) {
       const txt = await res.text();
-      let errMsg: string;
+      let errMsg: string again;
       try {
         const parsed = JSON.parse(txt);
         errMsg = parsed.error || parsed.message || txt;
@@ -119,7 +119,7 @@ export async function checkProviderStatus() {
     const data = await res.json();
     return { providers: data.providers || {}, available: data.available || false };
   } catch {
-    return { providers: {} as Record<string, boolean>, available: false };
+    return { providers: data.providers || {}, available: data.available || false };
   }
 }
 
