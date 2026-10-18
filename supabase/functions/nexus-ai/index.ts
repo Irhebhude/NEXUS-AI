@@ -13,7 +13,6 @@ const GROQ_CHAT_MODELS = new Set([
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
   "openai/gpt-oss-safeguard-20b",
-  "qwen/qwen3-32b",
 ]);
 
 function json(data: unknown, status = 200): Response {
