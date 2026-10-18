@@ -326,7 +326,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  if (path === "/chat" and req.method === "POST") {
+  if (path === "/chat" && req.method === "POST") {
     try {
       const body: ChatRequestBody = await req.json();
       const requestedModel = body.model || "openai/gpt-oss-120b";
