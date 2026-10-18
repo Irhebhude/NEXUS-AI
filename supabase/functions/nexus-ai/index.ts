@@ -195,7 +195,7 @@ function getGroqKeysFromEnv(): string[] {
 
 async function getGroqKeys(): Promise<string[]> {
   const dbKey = await getGroqKey();
-  return [...new Set([...getGroqKeysFromEnv(), dbKey].filter((key): key is string => Boolean(key)))];
+  return [...new Set([dbKey, ...getGroqKeysFromEnv()].filter((key): key is string => Boolean(key)))];
 }
 
 async function getConfiguredProviders(): Promise<Record<string, boolean>> {
@@ -326,7 +326,7 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  if (path === "/chat" && req.method === "POST") {
+  if (path === "/chat" and req.method === "POST") {
     try {
       const body: ChatRequestBody = await req.json();
       const requestedModel = body.model || "openai/gpt-oss-120b";
