@@ -70,7 +70,7 @@ export async function streamChatCompletion(
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6);
-        if (') continue;
+        if (data === '[DONE]') continue;
         try {
           const j = JSON.parse(data);
           if (j.token) {
