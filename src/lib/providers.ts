@@ -6,7 +6,6 @@ export const GROQ_MODELS = [
   'openai/gpt-oss-120b',
   'openai/gpt-oss-20b',
   'openai/gpt-oss-safeguard-20b',
-  'qwen/qwen3-32b',
 ];
 
 export const PROVIDER_REGISTRY: AIProviderConfig[] = [
