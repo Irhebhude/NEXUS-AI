@@ -95,13 +95,18 @@ export function useChat() {
   };
 
   const newConversation = useCallback(async () => {
-    const conv = await createConversation('New Conversation', model);
-    if (conv) {
-      setCurrentConversationId(conv.id);
-      setMessages([]);
-      setError(null);
+    try {
+      const conv = await createConversation('New Conversation', model);
+      if (conv) {
+        setCurrentConversationId(conv.id);
+        setMessages([]);
+        setError(null);
+      }
+      return conv;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create conversation');
+      return null;
     }
-    return conv;
   }, [model]);
 
   const selectConversation = useCallback((id: string) => {
@@ -144,20 +149,34 @@ export function useChat() {
 
     let convId = currentConversationId;
     if (!convId) {
-      const conv = await createConversation(
-        content.slice(0, 50) + (content.length > 50 ? '...' : ''),
-        model
-      );
+      let conv: Conversation | null = null;
+      try {
+        conv = await createConversation(
+          content.slice(0, 50) + (content.length > 50 ? '...' : ''),
+          model
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to create conversation');
+        sendLockRef.current = false;
+        return;
+      }
       if (!conv) {
         setError('Failed to create conversation');
         sendLockRef.current = false;
         return;
       }
       convId = conv.id;
-      setConversations((prev) => [conv, ...prev]);
+      setConversations((prev) => [conv as Conversation, ...prev]);
     }
 
-    const userMsg = await addMessage(convId, 'user', content);
+    let userMsg: ChatMessage | null = null;
+    try {
+      userMsg = await addMessage(convId, 'user', content);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save your message');
+      sendLockRef.current = false;
+      return;
+    }
     if (userMsg) {
       setMessages((prev) => [...prev, userMsg]);
     }
@@ -170,7 +189,14 @@ export function useChat() {
       );
     }
 
-    const assistantMsg = await addMessage(convId, 'assistant', '');
+    let assistantMsg: ChatMessage | null = null;
+    try {
+      assistantMsg = await addMessage(convId, 'assistant', '');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create response placeholder');
+      sendLockRef.current = false;
+      return;
+    }
     if (!assistantMsg) {
       setError('Failed to create response placeholder');
       sendLockRef.current = false;
