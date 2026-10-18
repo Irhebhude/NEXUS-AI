@@ -1,7 +1,7 @@
 // NEXUS AI — Edge Function v3: Groq AI Orchestration Proxy
 //
-// Primary provider: Groq (OpenAI-compatible API)
-// API key is read from the GROQ_API_KEY edge function secret.
+// Primary provider: OpenRouter (OpenAI-compatible API)
+// API keys are read from edge function secrets.
 //
 // Routes (relative to function root):
 //   GET  /        — provider status
@@ -30,6 +30,7 @@ interface ChatRequestBody {
   intelligence_mode?: "auto" | "general" | "reasoning" | "research" | "action";
 }
 
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const GROQ_CHAT_MODELS = new Set([
   "openai/gpt-oss-120b",
@@ -72,7 +73,7 @@ function normalizeSearchUrl(rawUrl: string): string | null {
 
 function parseSearchHtml(html: string): SearchResult[] {
   const results: SearchResult[] = [];
-  const anchorPattern = /<a\b[^>]*class=["'][^"']*(?:result__a|result-link)[^"']*['"][^>]*>[\s\S]*?<\/a>/gi;
+  const anchorPattern = /<a\b[^>]*class=["'][^"']*(?:result__a|result-link)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
   let anchorMatch: RegExpExecArray | null;
 
   while ((anchorMatch = anchorPattern.exec(html)) && results.length < 5) {
@@ -83,7 +84,7 @@ function parseSearchHtml(html: string): SearchResult[] {
     if (!url || !rawTitle) continue;
 
     const block = html.slice(anchorMatch.index, anchorMatch.index + 2400);
-    const snippet = block.match(/class=["'][^"']*(?:result__snippet|result-snippet)[^"']*['"][^>]*>([\s\S]*?)(?:<\/a>|<\/div>|<\/td>)/i)?.[1] || "";
+    const snippet = block.match(/class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)(?:<\/a>|<\/div>|<\/td>)/i)?.[1] || "";
     results.push({
       title: decodeHtml(rawTitle).trim(),
       url,
@@ -166,15 +167,20 @@ function buildResearchContext(results: SearchResult[]): string {
   ].join("\n\n");
 }
 
-function getGroqKeys(): string[] {
-  const key = Deno.env.get("GROQ_API_KEY")?.trim();
-  return key ? [key] : [];
+function getProviderKeys(): { openrouter: string | null; groq: string | null } {
+  return {
+    openrouter: Deno.env.get("OPENROUTER_API_KEY")?.trim() || null,
+    groq: Deno.env.get("GROQ_API_KEY")?.trim() || null,
+  };
 }
 
-async function getConfiguredProviders(): Promise<Record<string, boolean>> {
-  const keys = getGroqKeys();
-  console.info('[nexus-ai] Groq key configured:', keys.length > 0);
-  return { groq: keys.length > 0 };
+function getConfiguredProviders(): Record<string, boolean> {
+  const keys = getProviderKeys();
+  console.info('[nexus-ai] Provider keys configured:', {
+    openrouter: Boolean(keys.openrouter),
+    groq: Boolean(keys.groq),
+  });
+  return { openrouter: Boolean(keys.openrouter), groq: Boolean(keys.groq) };
 }
 
 async function streamOpenAICompatible(
@@ -217,7 +223,7 @@ async function streamOpenAICompatible(
     }
 
     if (response.status === 401) {
-      errMsg = "Invalid Groq key. Please set a valid GROQ_API_KEY secret.";
+      errMsg = "The configured AI provider rejected its API key.";
     } else if (response.status === 429) {
       errMsg = `Rate limit reached — please wait and try again: ${errMsg}`;
     } else if (response.status === 402) {
@@ -285,7 +291,7 @@ Deno.serve(async (req: Request) => {
 
   if ((path === "/" || path === "/status") && req.method === "GET") {
     try {
-      const providers = await getConfiguredProviders();
+      const providers = getConfiguredProviders();
       const available = Object.values(providers).some(Boolean);
       return new Response(
         JSON.stringify({ providers, available }),
@@ -293,7 +299,7 @@ Deno.serve(async (req: Request) => {
       );
     } catch {
       return new Response(
-        JSON.stringify({ providers: { groq: false }, available: false }),
+        JSON.stringify({ providers: { openrouter: false, groq: false }, available: false }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -316,29 +322,22 @@ Deno.serve(async (req: Request) => {
         ].filter(Boolean).join("\n\n");
       }
 
-      const providers = await getConfiguredProviders();
+      const providerKeys = getProviderKeys();
+      const provider = providerKeys.openrouter ? "openrouter" : "groq";
+      const apiKey = providerKeys.openrouter || providerKeys.groq;
+      const baseUrl = provider === "openrouter" ? OPENROUTER_BASE_URL : GROQ_BASE_URL;
 
-      if (!providers.groq) {
+      if (!apiKey) {
         return new Response(
           JSON.stringify({
-            error:
-              "Invalid Groq key. Please set a valid GROQ_API_KEY secret."
+            error: "No AI provider key is configured."
           }),
           { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
 
-      const apiKey = getGroqKeys()[0];
-      const provider = "groq";
       const actualModel = GROQ_CHAT_MODELS.has(requestedModel) ? requestedModel : "openai/gpt-oss-120b";
       body.model = actualModel;
-
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: "Failed to retrieve API key from configuration." }),
-          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
 
       const startTime = Date.now();
       const stream = new TransformStream();
@@ -350,13 +349,13 @@ Deno.serve(async (req: Request) => {
 
         try {
           const result = await streamOpenAICompatible(
-            GROQ_BASE_URL,
+            baseUrl,
             apiKey,
             body,
             actualModel,
             writer,
             encoder,
-            { "HTTP-Referer": "https://nexus-ai.searchpoi.workers.dev", "X-Title": "NEXUS AI" },
+            { "HTTP-Referer": "https://xus-ai-agr.pages.dev", "X-Title": "NEXUS AI" },
           );
           tokensOut = result.tokensOut;
 
