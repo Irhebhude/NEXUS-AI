@@ -1,6 +1,15 @@
 import type { ChatCompletionRequest, ChatCompletionResponse } from './types';
 
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/nexus-ai`;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const EDGE_FUNCTION_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/nexus-ai` : null;
+
+function requireEdgeFunctionUrl(): string {
+  if (!EDGE_FUNCTION_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Frontend is missing its Supabase settings. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your hosting provider\'s build settings, then redeploy.');
+  }
+  return EDGE_FUNCTION_URL;
+}
 
 interface Callbacks {
   onToken: (t: string) => void;
@@ -14,11 +23,11 @@ export async function streamChatCompletion(
   signal?: AbortSignal
 ): Promise<void> {
   try {
-    const res = await fetch(`${EDGE_FUNCTION_URL}/chat`, {
+    const res = await fetch(`${requireEdgeFunctionUrl()}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         model: req.model || 'openai/gpt-oss-120b',
@@ -61,7 +70,7 @@ export async function streamChatCompletion(
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6);
-        if (data === '[DONE]') continue;
+        if (') continue;
         try {
           const j = JSON.parse(data);
           if (j.token) {
@@ -98,9 +107,12 @@ export async function streamChatCompletion(
 
 export async function checkProviderStatus() {
   try {
+    if (!EDGE_FUNCTION_URL || !SUPABASE_ANON_KEY) {
+      return { providers: {} as Record<string, boolean>, available: false };
+    }
     const res = await fetch(`${EDGE_FUNCTION_URL}/status`, {
       headers: {
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
     });
     if (!res.ok) return { providers: {} as Record<string, boolean>, available: false };
